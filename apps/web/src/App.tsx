@@ -4,7 +4,7 @@ import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import { AuthModal } from "./components/AuthModal";
 import { Logo } from "./components/Logo";
 import { Onboarding } from "./components/Onboarding";
-import { isFirebaseConfigured, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
+import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
 
 type AuthMode = "login" | "signup" | null;
 
@@ -28,7 +28,7 @@ function Landing({ openAuth }: { openAuth: (mode: Exclude<AuthMode, null>) => vo
             <div className="sun-shape" />
             <div className="plan-card card-one"><span className="mini-icon coral"><MessageCircleHeart /></span><div><small>YOU SAID</small><strong>“I want to go shopping.”</strong></div></div>
             <div className="plan-card card-two"><span className="mini-icon green"><MapPin /></span><div><small>TAP FOUND</small><strong>3 nearby stores</strong><p>Easy routes · Open today</p></div></div>
-            <div className="plan-card card-three"><span className="mini-icon blue"><HeartHandshake /></span><div><small>NEXT STEP</small><strong>Ask Maya about a ride?</strong><button>Yes, prepare a text <ArrowRight /></button></div></div>
+            <div className="plan-card card-three"><span className="mini-icon blue"><HeartHandshake /></span><div><small>NEXT STEP</small><strong>Ask Maya about a ride?</strong><span className="demo-action">Yes, prepare a text <ArrowRight /></span></div></div>
             <div className="floating-pill"><Check /> A simple plan, ready in moments</div>
           </div>
         </section>
@@ -55,7 +55,15 @@ function Landing({ openAuth }: { openAuth: (mode: Exclude<AuthMode, null>) => vo
   );
 }
 
-function Home({ user, profile, contacts, onEdit, onLogout }: { user: AppUser; profile: SeniorProfile; contacts: TrustedContact[]; onEdit: () => void; onLogout: () => void }) {
+function Home({ user, profile, contacts, onEdit, onLogout, onDelete }: { user: AppUser; profile: SeniorProfile; contacts: TrustedContact[]; onEdit: () => void; onLogout: () => void; onDelete: () => Promise<void> }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  async function removeProfile() {
+    setDeleting(true);
+    setDeleteError("");
+    try { await onDelete(); } catch { setDeleteError("We couldn't delete your profile yet. Please try again."); setDeleting(false); }
+  }
   return (
     <div className="app-home">
       <header><Logo /><div className="home-account"><span>{user.displayName}</span><button className="nav-link" onClick={onLogout}>Log out</button></div></header>
@@ -69,8 +77,18 @@ function Home({ user, profile, contacts, onEdit, onLogout }: { user: AppUser; pr
           <span><Sparkles /><b>{profile.hobbies.length || "A few"} interests</b><small>For better matches</small></span>
           <span><HeartHandshake /><b>{contacts.length} trusted {contacts.length === 1 ? "person" : "people"}</b><small>Only contacted with permission</small></span>
         </div>
-        <div className="home-actions"><button className="primary-button">Tell TAP what you need <ArrowRight /></button><button className="secondary-button" onClick={onEdit}>Edit my profile</button></div>
-        <p className="coming-next">The conversational planner is the next vertical slice.</p>
+        <div className="home-actions"><button className="primary-button" onClick={onEdit}>Review or edit my profile <ArrowRight /></button></div>
+        <p className="coming-next">Your personalized planning assistant is coming next.</p>
+        <div className="profile-controls">
+          {!confirmingDelete ? <button className="text-button danger" onClick={() => setConfirmingDelete(true)}>Delete my profile data</button> : (
+            <div className="delete-confirmation" role="alertdialog" aria-labelledby="delete-title">
+              <strong id="delete-title">Delete your saved answers and trusted contacts?</strong>
+              <p>Your account will stay open, but this profile data cannot be recovered.</p>
+              {deleteError && <div className="form-error" role="alert">{deleteError}</div>}
+              <div><button className="secondary-button" disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancel</button><button className="danger-button" disabled={deleting} onClick={() => void removeProfile()}>{deleting ? "Deleting…" : "Delete profile data"}</button></div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
@@ -83,18 +101,26 @@ export default function App() {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   async function hydrate(nextUser: AppUser | null) {
+    setLoading(true);
+    setLoadError("");
     setUser(nextUser);
-    if (nextUser) {
-      const stored = await loadProfile(nextUser.uid);
-      setProfile(stored.profile);
-      setContacts(stored.contacts);
-    } else {
-      setProfile(null);
-      setContacts([]);
+    try {
+      if (nextUser) {
+        const stored = await loadProfile(nextUser.uid);
+        setProfile(stored.profile);
+        setContacts(stored.contacts);
+      } else {
+        setProfile(null);
+        setContacts([]);
+      }
+    } catch {
+      setLoadError("TAP couldn't load your profile. Check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => observeUser((nextUser) => void hydrate(nextUser)), []);
@@ -111,8 +137,17 @@ export default function App() {
     await hydrate(null);
   }
 
+  async function handleDelete() {
+    if (!user) return;
+    await deleteProfile(user.uid);
+    sessionStorage.removeItem(`tap.onboarding-draft.${user.uid}`);
+    setProfile(null);
+    setContacts([]);
+  }
+
   if (loading) return <div className="loading-screen"><Logo /><span>Getting TAP ready…</span></div>;
+  if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
   if (!user) return <><Landing openAuth={setAuthMode} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
-  return <Home user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} />;
+  return <Home user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} />;
 }

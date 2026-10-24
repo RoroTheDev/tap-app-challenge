@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
+import { normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
+import { onboardingStepError } from "./lib/validation";
 
 const profile: SeniorProfile = {
   uid: "user-1", email: "private@example.com", displayName: "Maria Chen", phone: "555-0100", birthYear: 1950,
@@ -19,5 +20,20 @@ describe("toPlannerProfile", () => {
     expect(JSON.stringify(summary)).not.toContain("Private Lane");
     expect(JSON.stringify(summary)).not.toContain("555-");
     expect(JSON.stringify(summary)).not.toContain("@example.com");
+    expect(JSON.stringify(summary)).not.toContain("Avoid stairs");
+    expect(summary.accessibilitySupportRequested).toBe(true);
+  });
+
+  it("recognizes any approved contact after primary contacts change", () => {
+    expect(toPlannerProfile(profile, [{ ...contact, isPrimary: false }], 2026).trustedContactAvailable).toBe(true);
+    expect(normalizeTrustedContacts([{ ...contact, isPrimary: false }, { ...contact, id: "c2" }]).map((item) => item.isPrimary)).toEqual([true, false]);
+  });
+});
+
+describe("onboarding validation", () => {
+  it("returns clear guidance for invalid profile and contact data", () => {
+    expect(onboardingStepError(0, { ...profile, phone: "12" }, [])).toContain("valid phone");
+    expect(onboardingStepError(1, { ...profile, city: "" }, [])).toBe("Please enter your city.");
+    expect(onboardingStepError(3, profile, [{ ...contact, email: "not-an-email" }])).toContain("email address");
   });
 });

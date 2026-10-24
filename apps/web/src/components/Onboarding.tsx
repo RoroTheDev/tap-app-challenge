@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,11 +11,13 @@ import {
 import {
   hobbyOptions,
   languageOptions,
+  normalizeTrustedContacts,
   transportOptions,
   type SeniorProfile,
   type TrustedContact,
 } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
+import { onboardingStepError } from "../lib/validation";
 
 const steps = ["About you", "Getting around", "What you enjoy", "Trusted circle", "Privacy"];
 const dayOptions = ["Weekdays", "Weekends"];
@@ -73,21 +75,25 @@ interface OnboardingProps {
 }
 
 export function Onboarding({ user, initialProfile, initialContacts = [], onSave }: OnboardingProps) {
+  const draftKey = `tap.onboarding-draft.${user.uid}`;
+  const draft = useMemo(() => {
+    if (initialProfile) return null;
+    try { return JSON.parse(sessionStorage.getItem(draftKey) ?? "null") as { profile?: SeniorProfile; contacts?: TrustedContact[] } | null; } catch { return null; }
+  }, [draftKey, initialProfile]);
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState<SeniorProfile>(initialProfile ?? emptyProfile(user));
-  const [contacts, setContacts] = useState<TrustedContact[]>(initialContacts.length ? initialContacts : [newContact(user.uid, true)]);
+  const [profile, setProfile] = useState<SeniorProfile>(initialProfile ?? draft?.profile ?? emptyProfile(user));
+  const [contacts, setContacts] = useState<TrustedContact[]>(normalizeTrustedContacts(initialContacts.length ? initialContacts : draft?.contacts?.length ? draft.contacts : [newContact(user.uid, true)]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const progress = ((step + 1) / steps.length) * 100;
   const firstName = profile.displayName.trim().split(/\s+/)[0] || "there";
-  const canContinue = useMemo(() => {
-    if (step === 0) return Boolean(profile.displayName.trim() && profile.preferredLanguage);
-    if (step === 1) return Boolean(profile.city.trim() && profile.state.trim());
-    if (step === 3) return contacts.every((contact) => !contact.name || (contact.relationship && contact.phone && contact.permissionConfirmed));
-    if (step === 4) return profile.personalizationConsent;
-    return true;
-  }, [contacts, profile, step]);
+  const stepError = useMemo(() => onboardingStepError(step, profile, contacts), [contacts, profile, step]);
+  const canContinue = !stepError;
+
+  useEffect(() => {
+    sessionStorage.setItem(draftKey, JSON.stringify({ profile, contacts }));
+  }, [contacts, draftKey, profile]);
 
   function update<K extends keyof SeniorProfile>(field: K, value: SeniorProfile[K]) {
     setProfile((current) => ({ ...current, [field]: value }));
@@ -99,15 +105,16 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   }
 
   function updateContact(id: string, field: keyof TrustedContact, value: string | boolean) {
-    setContacts((current) => current.map((contact) => contact.id === id ? { ...contact, [field]: value } : contact));
+    setContacts((current) => normalizeTrustedContacts(current.map((contact) => contact.id === id ? { ...contact, [field]: value } : contact)));
   }
 
   async function finish() {
     setSaving(true);
     setError("");
     try {
-      const activeContacts = contacts.filter((contact) => contact.name.trim());
+      const activeContacts = normalizeTrustedContacts(contacts.filter((contact) => contact.name.trim()));
       await onSave({ ...profile, onboardingComplete: true }, activeContacts);
+      sessionStorage.removeItem(draftKey);
     } catch {
       setError("We couldn't save your profile yet. Your answers are still here—please try once more.");
     } finally {
@@ -219,7 +226,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
             <div className="contact-list">
               {contacts.map((contact, index) => (
                 <article className="contact-card" key={contact.id}>
-                  <div className="contact-card-title"><h3>{index === 0 ? "Primary contact" : `Contact ${index + 1}`}</h3>{contacts.length > 1 && <button className="text-button danger" onClick={() => setContacts((current) => current.filter((item) => item.id !== contact.id))}><Trash2 /> Remove</button>}</div>
+                  <div className="contact-card-title"><h3>{index === 0 ? "Primary contact" : `Contact ${index + 1}`}</h3><button type="button" className="text-button danger" onClick={() => setContacts((current) => normalizeTrustedContacts(current.filter((item) => item.id !== contact.id)))}><Trash2 /> Remove</button></div>
                   <div className="field-grid two">
                     <label>Name<input value={contact.name} onChange={(event) => updateContact(contact.id, "name", event.target.value)} maxLength={80} placeholder="Full name" /></label>
                     <label>Relationship<input value={contact.relationship} onChange={(event) => updateContact(contact.id, "relationship", event.target.value)} maxLength={40} placeholder="Daughter, friend, neighbor…" /></label>
@@ -231,8 +238,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
                 </article>
               ))}
             </div>
-            {contacts.length < 5 && <button className="secondary-button" onClick={() => setContacts((current) => [...current, newContact(user.uid)])}><Plus /> Add another person</button>}
-            {!canContinue && <div className="form-error">Please complete each named contact and confirm permission, or remove that contact.</div>}
+            {contacts.length < 5 && <button type="button" className="secondary-button" onClick={() => setContacts((current) => normalizeTrustedContacts([...current, newContact(user.uid)]))}><Plus /> Add {contacts.length ? "another person" : "a trusted person"}</button>}
           </div>
         )}
 
@@ -254,17 +260,18 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
           </div>
         )}
 
+        {stepError && <div className="form-guidance" id="step-help" role="status">{stepError}</div>}
         {error && <div className="form-error" role="alert">{error}</div>}
         <footer className="quiz-actions">
-          {step > 0 ? <button className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button> : <span />}
+          {step > 0 ? <button type="button" className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button> : <span />}
           {step < steps.length - 1 ? (
-            <button className="primary-button" disabled={!canContinue} onClick={() => setStep((value) => value + 1)}>Continue <ArrowRight /></button>
+            <button type="button" className="primary-button" aria-describedby={stepError ? "step-help" : undefined} disabled={!canContinue} onClick={() => setStep((value) => value + 1)}>Continue <ArrowRight /></button>
           ) : (
-            <button className="primary-button" disabled={!canContinue || saving} onClick={() => void finish()}>{saving ? "Saving…" : "Finish my profile"} {!saving && <Check />}</button>
+            <button type="button" className="primary-button" disabled={!canContinue || saving} onClick={() => void finish()}>{saving ? "Saving…" : "Finish my profile"} {!saving && <Check />}</button>
           )}
         </footer>
       </section>
-      <p className="save-note"><LockKeyhole /> Your answers are protected and can be changed anytime.</p>
+      <p className="save-note"><LockKeyhole /> Your progress is saved in this browser until setup is complete.</p>
     </main>
   );
 }

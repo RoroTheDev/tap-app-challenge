@@ -5,14 +5,13 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User,
 } from "firebase/auth";
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -64,10 +63,17 @@ export function observeUser(callback: (user: AppUser | null) => void) {
   return () => undefined;
 }
 
-export async function continueWithGoogle(): Promise<AppUser> {
+export async function continueWithGoogle(): Promise<AppUser | null> {
   if (auth) {
-    const result = await signInWithPopup(auth, new GoogleAuthProvider());
-    return mapUser(result.user);
+    await Promise.race([
+      signInWithRedirect(auth, new GoogleAuthProvider()),
+      new Promise<never>((_, reject) => window.setTimeout(() => {
+        const error = new Error("Google sign-in redirect was blocked.");
+        Object.assign(error, { code: "auth/redirect-blocked" });
+        reject(error);
+      }, 8000)),
+    ]);
+    return null;
   }
   return createDemoUser("Alex Rivera", "alex@example.com");
 }
@@ -142,12 +148,16 @@ export async function saveProfile(profile: SeniorProfile, contacts: TrustedConta
     createdAt: existing.data()?.createdAt ?? serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  existingContacts.forEach((item) => batch.delete(item.ref));
+  const incomingIds = new Set(contacts.map((contact) => contact.id));
+  const existingById = new Map(existingContacts.docs.map((item) => [item.id, item.data()]));
+  existingContacts.forEach((item) => {
+    if (!incomingIds.has(item.id)) batch.delete(item.ref);
+  });
   contacts.forEach((contact) => {
     const contactRef = doc(contactsRef, contact.id);
     batch.set(contactRef, {
       ...contact,
-      createdAt: serverTimestamp(),
+      createdAt: existingById.get(contact.id)?.createdAt ?? serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
   });
@@ -163,6 +173,6 @@ export async function deleteProfile(uid: string) {
   const contacts = await getDocs(collection(db, "users", uid, "trustedContacts"));
   const batch = writeBatch(db);
   contacts.forEach((item) => batch.delete(item.ref));
+  batch.delete(doc(db, "users", uid));
   await batch.commit();
-  await deleteDoc(doc(db, "users", uid));
 }

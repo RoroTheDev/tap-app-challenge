@@ -5,13 +5,16 @@ first product slice is a welcoming registration and onboarding flow that gives
 the future conductor enough context to personalize suggestions without sending
 raw private data to an AI model.
 
+Live app: <https://congressapp-849ff.web.app>
+
 ## What works now
 
-- Responsive public landing page with an accessible, senior-friendly design
+- Responsive public landing page with large controls, readable contrast, and keyboard-friendly sign-in
 - Firebase Google sign-in and email/password registration
 - Five-step onboarding for language, phone, general location, mobility,
   transportation, interests, schedule, accessibility, and trusted contacts
 - Clear consent controls and optional fields for sensitive details
+- In-browser onboarding draft recovery and a profile-data deletion control
 - Owner-only Firestore profile and trusted-contact storage
 - Browser-local preview mode when Firebase variables are absent
 - A `toPlannerProfile` boundary that removes exact addresses, phone numbers,
@@ -100,12 +103,14 @@ npm audit
 The full Firestore profile is not a model prompt. `toPlannerProfile` creates a
 minimal planning context containing a first name, approximate age, city/state,
 language, mobility, transportation preferences, interests, preferred times,
-accessibility notes, and whether an approved trusted contact exists. It omits:
+whether accessibility support was requested, and whether an approved trusted
+contact exists. It omits:
 
 - Street address and ZIP code
 - User and trusted-contact phone numbers
 - User and trusted-contact emails
 - Trusted-contact names and relationships
+- Free-text accessibility notes
 
 Any future action such as sending a message, sharing location, making a booking,
 or spending money should require a separate server-side policy check and clear

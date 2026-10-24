@@ -8,4 +8,5 @@ dist/
 coverage/
 .vscode/
 .firebase-rules-analysis.md
+.firebase/
 *.tsbuildinfo

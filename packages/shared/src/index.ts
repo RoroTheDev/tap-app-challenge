@@ -84,7 +84,7 @@ export interface PlannerProfile {
   interests: string[];
   preferredDays: string[];
   preferredTimes: string[];
-  accessibilityNotes: string;
+  accessibilitySupportRequested: boolean;
   trustedContactAvailable: boolean;
 }
 
@@ -103,9 +103,11 @@ export function toPlannerProfile(
     interests: [...profile.hobbies, profile.otherInterests].filter(Boolean),
     preferredDays: profile.preferredDays,
     preferredTimes: profile.preferredTimes,
-    accessibilityNotes: profile.accessibilityNotes,
-    trustedContactAvailable: contacts.some(
-      (contact) => contact.isPrimary && contact.permissionConfirmed,
-    ),
+    accessibilitySupportRequested: Boolean(profile.accessibilityNotes.trim()),
+    trustedContactAvailable: contacts.some((contact) => contact.permissionConfirmed),
   };
+}
+
+export function normalizeTrustedContacts(contacts: TrustedContact[]) {
+  return contacts.map((contact, index) => ({ ...contact, isPrimary: index === 0 }));
 }
