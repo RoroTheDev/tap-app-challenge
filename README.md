@@ -1,66 +1,118 @@
-# TAP App Challenge
+# TAP — senior orchestration companion
 
-Voice-first orchestration platform for immigrant seniors.
+TAP helps older adults turn everyday goals into clear, supported plans. The
+first product slice is a welcoming registration and onboarding flow that gives
+the future conductor enough context to personalize suggestions without sending
+raw private data to an AI model.
 
-## Product thesis
+## What works now
 
-Older adults already have access to many powerful services for transportation, local activities, social connection, assistance, learning, and family coordination. The problem is that these services are fragmented and often require strong English and digital literacy.
-
-TAP acts as the **conductor**: the senior states an outcome in plain language, and the system decides which tools and services should be combined to accomplish it.
-
-## MVP flows
-
-1. **I want something to do**
-   - understand intent
-   - find activities
-   - rank against senior preferences
-   - check transportation feasibility
-   - schedule
-
-2. **I need help**
-   - classify the need
-   - route to the appropriate service/resource
-   - give one simple next action
-
-3. **I want to see people**
-   - discover a relevant community opportunity
-   - apply language / mobility / time constraints
-   - coordinate attendance
-
-## Architecture
-
-```
-Senior (voice/text)
-        |
-        v
-Input + language layer
-        |
-        v
-Intent / task parser
-        |
-        v
-Orchestrator
-  |       |       |
-Activities Routes Assistance
-  |       |       |
-        Adapters
-        |
-        v
-Constraint + ranking engine
-        |
-        v
-Action plan
-  |       |       |
-Senior  Family  Calendar
-```
+- Responsive public landing page with an accessible, senior-friendly design
+- Firebase Google sign-in and email/password registration
+- Five-step onboarding for language, phone, general location, mobility,
+  transportation, interests, schedule, accessibility, and trusted contacts
+- Clear consent controls and optional fields for sensitive details
+- Owner-only Firestore profile and trusted-contact storage
+- Browser-local preview mode when Firebase variables are absent
+- A `toPlannerProfile` boundary that removes exact addresses, phone numbers,
+  contact names, and emails before future OpenAI requests
 
 ## Repository
 
-- `apps/web` — React/Vite senior + family UI
-- `apps/api` — Express orchestration backend
-- `packages/shared` — shared TypeScript contracts
-- `docs` — product and architecture documentation
+```text
+apps/web               React + Vite + TypeScript frontend
+packages/shared        Shared profile and planner-safe types
+firestore.rules        Prototype owner-only Firestore rules
+firebase.json          Firestore and Hosting configuration
+```
 
-## Security
+## Run locally
 
-Never commit API keys or Firebase service-account credentials. Copy `.env.example` to local environment files and keep secrets server-side.
+Requirements: Node.js 22 or newer and npm.
+
+```bash
+npm install
+cp .env.example apps/web/.env.local
+npm run dev:web
+```
+
+Open `http://localhost:5173`.
+
+If the `VITE_FIREBASE_*` values are blank, TAP automatically uses preview mode
+and stores the sample profile only in that browser. The real project web config
+can be retrieved with:
+
+```bash
+npx -y firebase-tools@latest apps:list --project congressapp-849ff
+npx -y firebase-tools@latest apps:sdkconfig web <app-id> --project congressapp-849ff
+```
+
+Firebase web configuration identifies the Firebase project; it is not a server
+secret. Private API credentials such as OpenAI, Twilio, or Firebase Admin keys
+must never use a `VITE_` prefix or be placed in frontend code.
+
+## Enable registration in Firebase
+
+In the [Firebase console](https://console.firebase.google.com/project/congressapp-849ff/authentication/providers):
+
+1. Open **Authentication → Sign-in method**.
+2. Enable **Email/Password**.
+3. Enable **Google**, choose the project support email, and save.
+4. Under **Authentication → Settings → Authorized domains**, ensure
+   `localhost` is present for local development. Add the production hostname
+   before launch (hostname only—no protocol or port).
+
+The frontend is already registered as the Firebase web app
+`tap-app-challenge`. Do not create a duplicate web app.
+
+## Firestore data model
+
+- `users/{uid}` — private onboarding profile
+- `users/{uid}/trustedContacts/{contactId}` — private trusted contacts
+
+Both paths require Firebase Authentication and may be read or changed only by
+the matching account UID. The rules validate allowed fields, types, sizes,
+enumerated values, contact permission, timestamps, and immutable ownership.
+
+Validate rules without changing production:
+
+```bash
+npx -y firebase-tools@latest deploy --only firestore:rules --project congressapp-849ff --dry-run
+```
+
+Deploy them after review:
+
+```bash
+npx -y firebase-tools@latest deploy --only firestore:rules --project congressapp-849ff
+```
+
+## Quality checks
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm audit
+```
+
+## Privacy boundary for the conductor
+
+The full Firestore profile is not a model prompt. `toPlannerProfile` creates a
+minimal planning context containing a first name, approximate age, city/state,
+language, mobility, transportation preferences, interests, preferred times,
+accessibility notes, and whether an approved trusted contact exists. It omits:
+
+- Street address and ZIP code
+- User and trusted-contact phone numbers
+- User and trusted-contact emails
+- Trusted-contact names and relationships
+
+Any future action such as sending a message, sharing location, making a booking,
+or spending money should require a separate server-side policy check and clear
+user confirmation.
+
+## Environment variables
+
+Copy `.env.example`; never commit `.env` or `.env.local` files. Only Firebase
+web values belong in `apps/web/.env.local`. Keep OpenAI, Twilio, Maps, and
+Firebase Admin credentials server-side when the API workspace is added.
