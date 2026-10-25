@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithRedirect,
@@ -46,6 +47,7 @@ export interface AppUser {
 const DEMO_USER_KEY = "tap.demo-user";
 const DEMO_PROFILE_KEY = "tap.demo-profile";
 const DEMO_CONTACTS_KEY = "tap.demo-contacts";
+const GOOGLE_REDIRECT_KEY = "tap.google-redirect-pending";
 
 function mapUser(user: User): AppUser {
   return {
@@ -56,8 +58,30 @@ function mapUser(user: User): AppUser {
   };
 }
 
-export function observeUser(callback: (user: AppUser | null) => void) {
-  if (auth) return onAuthStateChanged(auth, (user) => callback(user ? mapUser(user) : null));
+export function observeUser(callback: (user: AppUser | null) => void, onError?: (error: unknown) => void) {
+  if (auth) {
+    let stopped = false;
+    let unsubscribe: () => void = () => {};
+    const pendingRedirect = sessionStorage.getItem(GOOGLE_REDIRECT_KEY) === "true";
+    void getRedirectResult(auth)
+      .then(() => {
+        sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+        if (stopped) return;
+        if (pendingRedirect && !auth.currentUser) {
+          const error = new Error("Google sign-in did not finish.");
+          Object.assign(error, { code: "auth/redirect-incomplete" });
+          onError?.(error);
+        }
+        unsubscribe = onAuthStateChanged(auth, (user) => callback(user ? mapUser(user) : null), onError);
+      })
+      .catch((error) => {
+        sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+        if (stopped) return;
+        onError?.(error);
+        unsubscribe = onAuthStateChanged(auth, (user) => callback(user ? mapUser(user) : null), onError);
+      });
+    return () => { stopped = true; unsubscribe(); };
+  }
   const stored = localStorage.getItem(DEMO_USER_KEY);
   callback(stored ? JSON.parse(stored) : null);
   return () => undefined;
@@ -65,14 +89,13 @@ export function observeUser(callback: (user: AppUser | null) => void) {
 
 export async function continueWithGoogle(): Promise<AppUser | null> {
   if (auth) {
-    await Promise.race([
-      signInWithRedirect(auth, new GoogleAuthProvider()),
-      new Promise<never>((_, reject) => window.setTimeout(() => {
-        const error = new Error("Google sign-in redirect was blocked.");
-        Object.assign(error, { code: "auth/redirect-blocked" });
-        reject(error);
-      }, 8000)),
-    ]);
+    sessionStorage.setItem(GOOGLE_REDIRECT_KEY, "true");
+    try {
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+    } catch (error) {
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+      throw error;
+    }
     return null;
   }
   return createDemoUser("Alex Rivera", "alex@example.com");

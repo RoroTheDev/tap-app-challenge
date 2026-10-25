@@ -18,6 +18,7 @@ function authErrorMessage(error: unknown) {
   if (code.includes("unauthorized-domain")) return "This website still needs to be added to Firebase's authorized domains.";
   if (code.includes("network-request-failed")) return "We couldn't reach Firebase. Check your connection and try again.";
   if (code.includes("redirect-blocked")) return "This browser blocked Google sign-in. Open TAP in Chrome, Edge, or Safari—or use email instead.";
+  if (code.includes("redirect-incomplete")) return "Google sign-in returned without finishing. Please try again or use email.";
   return "We couldn't sign you in. Please try again.";
 }
 

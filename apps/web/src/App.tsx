@@ -9,13 +9,14 @@ import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppU
 
 type AuthMode = "login" | "signup" | null;
 
-function Landing({ openAuth }: { openAuth: (mode: Exclude<AuthMode, null>) => void }) {
+function Landing({ openAuth, authError }: { openAuth: (mode: Exclude<AuthMode, null>) => void; authError?: string }) {
   return (
     <div className="landing">
       <nav className="site-nav">
         <Logo />
         <div className="nav-actions"><button className="nav-link" onClick={() => openAuth("login")}>Log in</button><button className="nav-cta" onClick={() => openAuth("signup")}>Get started</button></div>
       </nav>
+      {authError && <div className="auth-banner" role="alert">{authError}</div>}
 
       <main>
         <section className="hero">
@@ -64,11 +65,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [authError, setAuthError] = useState("");
 
   async function hydrate(nextUser: AppUser | null) {
     setLoading(true);
     setLoadError("");
     setUser(nextUser);
+    if (nextUser) setAuthError("");
     try {
       if (nextUser) {
         const stored = await loadProfile(nextUser.uid);
@@ -85,7 +88,16 @@ export default function App() {
     }
   }
 
-  useEffect(() => observeUser((nextUser) => void hydrate(nextUser)), []);
+  useEffect(() => observeUser(
+    (nextUser) => void hydrate(nextUser),
+    (error) => {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      setAuthError(code.includes("redirect-incomplete")
+        ? "Google sign-in returned without completing. Please try once more, or use email sign-in."
+        : "Google sign-in could not be completed. Please try again.");
+      setLoading(false);
+    },
+  ), []);
 
   async function handleSave(nextProfile: SeniorProfile, nextContacts: TrustedContact[]) {
     await saveProfile(nextProfile, nextContacts);
@@ -109,7 +121,7 @@ export default function App() {
 
   if (loading) return <div className="loading-screen"><Logo /><span>Getting TAP ready…</span></div>;
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
-  if (!user) return <><Landing openAuth={setAuthMode} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
+  if (!user) return <><Landing openAuth={setAuthMode} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
   return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} />;
 }

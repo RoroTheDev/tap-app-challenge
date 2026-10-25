@@ -12,6 +12,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .logo-mark i { display: block; background: #fff8e9; border-radius: 8px; transform: rotate(4deg); }
 .logo-mark i:nth-child(1) { height: 8px; }.logo-mark i:nth-child(2) { height: 14px; }.logo-mark i:nth-child(3) { height: 20px; }
 .site-nav { height: 88px; display: flex; align-items: center; justify-content: space-between; max-width: 1240px; margin: auto; padding: 0 32px; }
+.auth-banner { max-width: 1180px; margin: 0 auto; padding: 14px 18px; border: 1px solid #e2b6ae; border-radius: 14px; background: #fff0ed; color: #843326; font-weight: 700; }
 .nav-actions, .hero-actions, .home-actions { display: flex; align-items: center; gap: 14px; }
 .nav-link, .text-button { min-height: 44px; border: 0; background: transparent; color: var(--ink); font-weight: 700; padding: 10px 14px; }
 .nav-cta, .primary-button, .secondary-button, .back-button { min-height: 48px; border-radius: 999px; border: 0; padding: 0 22px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; font-weight: 700; transition: transform .2s, background .2s, box-shadow .2s; }
