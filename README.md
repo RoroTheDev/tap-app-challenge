@@ -13,12 +13,19 @@ Live app: <https://congressapp-849ff.web.app>
 - Firebase Google sign-in and email/password registration
 - Five-step onboarding for language, phone, general location, mobility,
   transportation, interests, schedule, accessibility, and trusted contacts
+- A personalized main hub that follows the member's saved language
+- Typed requests, browser speech recognition, quick starts, ranked action tags,
+  trusted-contact permission checks, and a visible fallback step
 - Clear consent controls and optional fields for sensitive details
 - In-browser onboarding draft recovery and a profile-data deletion control
 - Owner-only Firestore profile and trusted-contact storage
 - Browser-local preview mode when Firebase variables are absent
 - A `toPlannerProfile` boundary that removes exact addresses, phone numbers,
   contact names, and emails before future OpenAI requests
+
+Voice recognition uses the browser's built-in speech service when available and
+sets its locale from the preferred language selected during onboarding. Typing
+always remains available as the fallback.
 
 ## Repository
 

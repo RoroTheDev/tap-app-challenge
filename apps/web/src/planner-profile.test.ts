@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
 import { onboardingStepError } from "./lib/validation";
+import { buildHubPlan } from "./lib/hub-plan";
+import { getHubCopy, getTextDirection, speechLocales } from "./lib/localization";
 
 const profile: SeniorProfile = {
   uid: "user-1", email: "private@example.com", displayName: "Maria Chen", phone: "555-0100", birthYear: 1950,
@@ -35,5 +37,20 @@ describe("onboarding validation", () => {
     expect(onboardingStepError(0, { ...profile, phone: "12" }, [])).toContain("valid phone");
     expect(onboardingStepError(1, { ...profile, city: "" }, [])).toBe("Please enter your city.");
     expect(onboardingStepError(3, profile, [{ ...contact, email: "not-an-email" }])).toContain("email address");
+  });
+});
+
+describe("personalized hub", () => {
+  it("uses the saved language for hub copy and speech recognition", () => {
+    const copy = getHubCopy("Spanish");
+    expect(copy.askTitle).toBe("Dile a TAP lo que necesitas");
+    expect(speechLocales.Spanish).toBe("es-US");
+    expect(getTextDirection("Arabic")).toBe("rtl");
+  });
+
+  it("builds ranked action tags and only includes approved contact help", () => {
+    const copy = getHubCopy("English");
+    expect(buildHubPlan("I want to go shopping", copy, true).steps.map((step) => step.tag)).toEqual(["places", "transport", "contact", "fallback"]);
+    expect(buildHubPlan("I want to go shopping", copy, false).steps.map((step) => step.tag)).toEqual(["places", "transport", "fallback"]);
   });
 });

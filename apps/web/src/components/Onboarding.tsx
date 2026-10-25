@@ -137,7 +137,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
         {step === 0 && (
           <div className="form-section">
             <h2>A little about you</h2>
-            <p>This helps TAP speak your language and reach you the way you prefer.</p>
+            <p>Choose the language TAP should use in your main hub and when listening to voice requests.</p>
             <div className="field-grid two">
               <label>Preferred name <span className="required">Required</span>
                 <input value={profile.displayName} onChange={(event) => update("displayName", event.target.value)} maxLength={80} />
@@ -153,7 +153,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
                   <option value="text">Text message</option><option value="call">Phone call</option><option value="email">Email</option>
                 </select>
               </label>
-              <label>Preferred language
+              <label>What language should TAP speak with you? <span className="required">Required</span>
                 <select value={profile.preferredLanguage} onChange={(event) => update("preferredLanguage", event.target.value)}>
                   {languageOptions.map((language) => <option key={language}>{language}</option>)}
                 </select>
@@ -162,6 +162,9 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
                 <input value={profile.secondaryLanguage} onChange={(event) => update("secondaryLanguage", event.target.value)} maxLength={40} placeholder="Language or dialect" />
               </label>
             </div>
+            <label>How can TAP communicate more clearly with you? <span className="optional">Optional</span>
+              <textarea value={profile.communicationNotes} onChange={(event) => update("communicationNotes", event.target.value)} maxLength={500} placeholder="For example: Use short sentences, read choices aloud, or give me extra time." />
+            </label>
           </div>
         )}
 

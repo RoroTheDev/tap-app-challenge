@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CalendarHeart, Check, HeartHandshake, MapPin, MessageCircleHeart, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import { AuthModal } from "./components/AuthModal";
+import { Hub } from "./components/Hub";
 import { Logo } from "./components/Logo";
 import { Onboarding } from "./components/Onboarding";
 import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
@@ -42,7 +43,7 @@ function Landing({ openAuth }: { openAuth: (mode: Exclude<AuthMode, null>) => vo
         <section className="how-section" id="how-it-works">
           <div className="section-intro"><div className="eyebrow">HOW TAP HELPS</div><h2>From “I wish…” to a plan you can use.</h2><p>No searching through five different apps. No confusing menus. Just tell TAP what matters today.</p></div>
           <div className="story-grid">
-            <article><span>01</span><MessageCircleHeart /><h3>Say what you need</h3><p>Type it now, with voice coming next. Use everyday words and your preferred language.</p></article>
+            <article><span>01</span><MessageCircleHeart /><h3>Say what you need</h3><p>Type it or use your voice. Speak naturally in your preferred language.</p></article>
             <article><span>02</span><Sparkles /><h3>TAP connects the pieces</h3><p>It considers your interests, mobility, location, schedule, and trusted circle.</p></article>
             <article><span>03</span><CalendarHeart /><h3>Choose your next step</h3><p>Get a short, ranked plan. TAP asks before contacting anyone or taking action.</p></article>
           </div>
@@ -51,45 +52,6 @@ function Landing({ openAuth }: { openAuth: (mode: Exclude<AuthMode, null>) => vo
         <section className="cta-section"><div><div className="eyebrow">YOUR DAY, YOUR WAY</div><h2>Let’s make everyday plans feel possible again.</h2></div><button className="primary-button light" onClick={() => openAuth("signup")}>Create my free profile <ArrowRight /></button></section>
       </main>
       <footer className="site-footer"><Logo /><p>Technology that brings people closer.</p><span>© 2026 TAP</span></footer>
-    </div>
-  );
-}
-
-function Home({ user, profile, contacts, onEdit, onLogout, onDelete }: { user: AppUser; profile: SeniorProfile; contacts: TrustedContact[]; onEdit: () => void; onLogout: () => void; onDelete: () => Promise<void> }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  async function removeProfile() {
-    setDeleting(true);
-    setDeleteError("");
-    try { await onDelete(); } catch { setDeleteError("We couldn't delete your profile yet. Please try again."); setDeleting(false); }
-  }
-  return (
-    <div className="app-home">
-      <header><Logo /><div className="home-account"><span>{user.displayName}</span><button className="nav-link" onClick={onLogout}>Log out</button></div></header>
-      <main className="welcome-card">
-        <div className="success-badge"><Check /></div>
-        <div className="eyebrow">YOUR PROFILE IS READY</div>
-        <h1>Welcome, {profile.displayName.split(" ")[0]}.</h1>
-        <p>TAP now knows enough to make suggestions that fit your life—without sharing your private details with the planner.</p>
-        <div className="profile-summary">
-          <span><MapPin /><b>{profile.city}, {profile.state}</b><small>Your area</small></span>
-          <span><Sparkles /><b>{profile.hobbies.length || "A few"} interests</b><small>For better matches</small></span>
-          <span><HeartHandshake /><b>{contacts.length} trusted {contacts.length === 1 ? "person" : "people"}</b><small>Only contacted with permission</small></span>
-        </div>
-        <div className="home-actions"><button className="primary-button" onClick={onEdit}>Review or edit my profile <ArrowRight /></button></div>
-        <p className="coming-next">Your personalized planning assistant is coming next.</p>
-        <div className="profile-controls">
-          {!confirmingDelete ? <button className="text-button danger" onClick={() => setConfirmingDelete(true)}>Delete my profile data</button> : (
-            <div className="delete-confirmation" role="alertdialog" aria-labelledby="delete-title">
-              <strong id="delete-title">Delete your saved answers and trusted contacts?</strong>
-              <p>Your account will stay open, but this profile data cannot be recovered.</p>
-              {deleteError && <div className="form-error" role="alert">{deleteError}</div>}
-              <div><button className="secondary-button" disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancel</button><button className="danger-button" disabled={deleting} onClick={() => void removeProfile()}>{deleting ? "Deleting…" : "Delete profile data"}</button></div>
-            </div>
-          )}
-        </div>
-      </main>
     </div>
   );
 }
@@ -149,5 +111,5 @@ export default function App() {
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
   if (!user) return <><Landing openAuth={setAuthMode} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
-  return <Home user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} />;
+  return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} />;
 }
