@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -56,6 +56,9 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   const [contacts, setContacts] = useState<TrustedContact[]>(normalizeTrustedContacts(initialContacts.length ? initialContacts : draft?.contacts?.length ? draft.contacts : [newContact(user.uid, true)], user.uid));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [draftWarning, setDraftWarning] = useState("");
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
 
   const progress = ((step + 1) / steps.length) * 100;
   const firstName = profile.displayName.trim().split(/\s+/)[0] || "there";
@@ -63,8 +66,19 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   const canContinue = !stepError;
 
   useEffect(() => {
-    sessionStorage.setItem(draftKey, JSON.stringify({ profile, contacts }));
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify({ profile, contacts }));
+      setDraftWarning("");
+    } catch {
+      setDraftWarning("This browser could not save a temporary draft. Keep this page open until you finish.");
+    }
   }, [contacts, draftKey, profile]);
+
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    headingRef.current?.focus();
+    headingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [step]);
 
   function update<K extends keyof SeniorProfile>(field: K, value: SeniorProfile[K]) {
     setProfile((current) => ({ ...current, [field]: value }));
@@ -98,7 +112,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
       <header className="onboarding-header">
         <div>
           <div className="eyebrow">LET'S GET TO KNOW YOU</div>
-          <h1>{step === 0 ? `Hi ${firstName}.` : steps[step]}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>{step === 0 ? `Hi ${firstName}.` : steps[step]}</h1>
         </div>
         <span className="step-count">Step {step + 1} of {steps.length}</span>
       </header>
@@ -174,6 +188,23 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
                 {transportOptions.map((option) => <button key={option} type="button" className={`choice-chip ${profile.transportModes.includes(option) ? "selected" : ""}`} onClick={() => toggleList("transportModes", option)}>{profile.transportModes.includes(option) && <Check />} {option}</button>)}
               </div>
             </fieldset>
+            <div className="field-grid three planning-preferences">
+              <label>Comfortable walking level
+                <select value={profile.walkingTolerance} onChange={(event) => update("walkingTolerance", event.target.value as SeniorProfile["walkingTolerance"])}>
+                  <option value="short">Short distances</option><option value="moderate">Some walking</option><option value="long">Longer walks are okay</option>
+                </select>
+              </label>
+              <label>Usual travel limit
+                <select value={profile.maxTravelMinutes} onChange={(event) => update("maxTravelMinutes", Number(event.target.value) as SeniorProfile["maxTravelMinutes"])}>
+                  <option value={15}>About 15 minutes</option><option value={30}>About 30 minutes</option><option value={45}>About 45 minutes</option><option value={60}>About 1 hour</option><option value={0}>Flexible</option>
+                </select>
+              </label>
+              <label>How many choices should TAP show?
+                <select value={profile.planPreference} onChange={(event) => update("planPreference", event.target.value as SeniorProfile["planPreference"])}>
+                  <option value="simple">One best choice</option><option value="balanced">A few choices</option><option value="detailed">More detail and options</option>
+                </select>
+              </label>
+            </div>
           </div>
         )}
 
@@ -235,8 +266,9 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
         )}
 
         {stepError && <div className="form-guidance" id="step-help" role="status">{stepError}</div>}
+        {draftWarning && <div className="form-guidance" role="status">{draftWarning}</div>}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <footer className="quiz-actions">
+        <footer className="quiz-actions" aria-busy={saving}>
           {step > 0 ? <button type="button" className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button> : <span />}
           {step < steps.length - 1 ? (
             <button type="button" className="primary-button" aria-describedby={stepError ? "step-help" : undefined} disabled={!canContinue} onClick={() => setStep((value) => value + 1)}>Continue <ArrowRight /></button>

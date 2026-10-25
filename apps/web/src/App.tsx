@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CalendarHeart, Check, HeartHandshake, MapPin, MessageCircleHeart, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import { AuthModal } from "./components/AuthModal";
@@ -8,6 +8,17 @@ import { Onboarding } from "./components/Onboarding";
 import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
 
 type AuthMode = "login" | "signup" | null;
+const PROFILE_LOAD_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("Profile request timed out.")), milliseconds);
+    operation.then(
+      (value) => { window.clearTimeout(timer); resolve(value); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
+  });
+}
 
 function Landing({ openAuth, authError }: { openAuth: (mode: Exclude<AuthMode, null>) => void; authError?: string }) {
   return (
@@ -66,15 +77,18 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [authError, setAuthError] = useState("");
+  const hydrationSequence = useRef(0);
 
   async function hydrate(nextUser: AppUser | null) {
+    const sequence = ++hydrationSequence.current;
     setLoading(true);
     setLoadError("");
     setUser(nextUser);
     if (nextUser) setAuthError("");
     try {
       if (nextUser) {
-        const stored = await loadProfile(nextUser.uid);
+        const stored = await withTimeout(loadProfile(nextUser.uid), PROFILE_LOAD_TIMEOUT_MS);
+        if (sequence !== hydrationSequence.current) return;
         setProfile(stored.profile);
         setContacts(stored.contacts);
       } else {
@@ -82,9 +96,10 @@ export default function App() {
         setContacts([]);
       }
     } catch {
+      if (sequence !== hydrationSequence.current) return;
       setLoadError("TAP couldn't load your profile. Check your connection and try again.");
     } finally {
-      setLoading(false);
+      if (sequence === hydrationSequence.current) setLoading(false);
     }
   }
 
@@ -107,8 +122,14 @@ export default function App() {
   }
 
   async function handleLogout() {
-    await logOut();
-    await hydrate(null);
+    setLoading(true);
+    try {
+      await logOut();
+      await hydrate(null);
+    } catch {
+      setLoadError("TAP couldn't log you out. Check your connection and try again.");
+      setLoading(false);
+    }
   }
 
   async function handleDelete() {

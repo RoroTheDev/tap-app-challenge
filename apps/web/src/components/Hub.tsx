@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, CircleUserRound, MapPin, Mic, Route, RotateCcw, Send, ShieldCheck, Square, Users } from "lucide-react";
 import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
@@ -59,6 +59,18 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete }: Hub
   const recognition = useRef<SpeechRecognitionLike | null>(null);
   const trustedContactAvailable = contacts.some((contact) => contact.permissionConfirmed);
   const firstName = profile.displayName.trim().split(/\s+/)[0] || user.displayName;
+
+  useEffect(() => {
+    const previousLanguage = document.documentElement.lang;
+    const previousDirection = document.documentElement.dir;
+    document.documentElement.lang = (speechLocales[profile.preferredLanguage] ?? "en-US").split("-")[0];
+    document.documentElement.dir = getTextDirection(profile.preferredLanguage);
+    return () => {
+      recognition.current?.stop();
+      document.documentElement.lang = previousLanguage || "en";
+      document.documentElement.dir = previousDirection;
+    };
+  }, [profile.preferredLanguage]);
 
   function startListening() {
     setMessage("");

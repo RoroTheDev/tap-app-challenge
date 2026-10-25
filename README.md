@@ -12,12 +12,14 @@ Live app: <https://congressapp-849ff.web.app>
 - Responsive public landing page with large controls, readable contrast, and keyboard-friendly sign-in
 - Firebase Google sign-in and email/password registration
 - Five-step onboarding for language, phone, general location, mobility,
-  transportation, interests, schedule, accessibility, and trusted contacts
+  transportation, walking comfort, travel-time limits, plan detail, interests,
+  schedule, accessibility, and trusted contacts
 - A personalized main hub that follows the member's saved language
 - Typed requests, browser speech recognition, quick starts, ranked action tags,
   trusted-contact permission checks, and a visible fallback step
 - Clear consent controls and optional fields for sensitive details
 - In-browser onboarding draft recovery and a profile-data deletion control
+- Safe migration for older/partial profiles and a visible crash-recovery screen
 - Owner-only Firestore profile and trusted-contact storage
 - Browser-local preview mode when Firebase variables are absent
 - A `toPlannerProfile` boundary that removes exact addresses, phone numbers,
@@ -83,6 +85,12 @@ The frontend is already registered as the Firebase web app
 Both paths require Firebase Authentication and may be read or changed only by
 the matching account UID. The rules validate allowed fields, types, sizes,
 enumerated values, contact permission, timestamps, and immutable ownership.
+The current profile schema is version 2; complete version 1 writes remain
+temporarily accepted so already-open clients can finish during rollout.
+
+The current Standard Firestore database has delete protection and point-in-time
+recovery disabled. Decide whether to enable those operational recovery features
+before a broad launch, since availability and cost depend on the Firebase plan.
 
 Validate rules without changing production:
 

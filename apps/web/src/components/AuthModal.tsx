@@ -11,8 +11,11 @@ interface AuthModalProps {
 function authErrorMessage(error: unknown) {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
   if (code.includes("popup-closed")) return "The Google sign-in window was closed. Please try again.";
+  if (code.includes("cancelled-popup-request")) return "Another Google sign-in window is already open.";
   if (code.includes("email-already-in-use")) return "That email already has an account. Try logging in.";
+  if (code.includes("invalid-email")) return "Please check that email address.";
   if (code.includes("invalid-credential")) return "We couldn't match that email and password.";
+  if (code.includes("too-many-requests")) return "Too many attempts were made. Please wait a moment and try again.";
   if (code.includes("weak-password")) return "Use at least 6 characters for your password.";
   if (code.includes("operation-not-allowed")) return "This sign-in method still needs to be enabled in Firebase.";
   if (code.includes("unauthorized-domain")) return "This website still needs to be added to Firebase's authorized domains.";

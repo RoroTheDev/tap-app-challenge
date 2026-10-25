@@ -12,11 +12,13 @@ rules_version = '2';
 //   uid/email/displayName/phone/preferredLanguage/secondaryLanguage: string
 //   birthYear: int or null
 //   addressLine1/addressLine2/city/state/postalCode: string
-//   mobility/contactPreference: constrained string enum
+//   mobility/contactPreference/walkingTolerance/planPreference: constrained string enum
+//   maxTravelMinutes: int in 0/15/30/45/60
 //   transportModes/hobbies/preferredDays/preferredTimes: constrained list
 //   otherInterests/communicationNotes/accessibilityNotes: bounded string
 //   personalizationConsent/locationUseConsent/onboardingComplete: bool
-//   schemaVersion: int (must be 1)
+//   schemaVersion: int (1 accepted temporarily for open-client compatibility;
+//     current clients write 2)
 //   createdAt/updatedAt: timestamp (createdAt is immutable)
 //
 // Subcollection: users/{userId}/trustedContacts
@@ -70,6 +72,13 @@ service cloud.firestore {
           (value.size() <= 120 && value.matches('^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$')));
     }
 
+    function validPhone(value, allowEmpty) {
+      return value is string &&
+        ((allowEmpty && value.size() == 0) ||
+          (value.size() >= 7 && value.size() <= 24 &&
+            value.matches('^[0-9+() .\\-xXextEXT]+$')));
+    }
+
     function isRecent(value) {
       return value is timestamp &&
         value >= request.time - duration.value(5, 'm') &&
@@ -91,8 +100,8 @@ service cloud.firestore {
         data.preferredTimes.hasOnly(['Morning', 'Afternoon', 'Evening']);
     }
 
-    function isValidUser(data) {
-      let fields = [
+    function hasValidProfileSchema(data) {
+      let version1Fields = [
         'uid', 'email', 'displayName', 'phone', 'birthYear',
         'preferredLanguage', 'secondaryLanguage', 'addressLine1',
         'addressLine2', 'city', 'state', 'postalCode', 'mobility',
@@ -102,13 +111,28 @@ service cloud.firestore {
         'locationUseConsent', 'onboardingComplete', 'schemaVersion',
         'createdAt', 'updatedAt'
       ];
-      return hasRequiredFields(data, fields) &&
-        hasOnlyAllowedFields(data, fields) &&
+      let version2Fields = version1Fields.concat([
+        'walkingTolerance', 'maxTravelMinutes', 'planPreference'
+      ]);
+      return (data.schemaVersion == 1 &&
+          hasRequiredFields(data, version1Fields) &&
+          hasOnlyAllowedFields(data, version1Fields)) ||
+        (data.schemaVersion == 2 &&
+          hasRequiredFields(data, version2Fields) &&
+          hasOnlyAllowedFields(data, version2Fields) &&
+          data.walkingTolerance in ['short', 'moderate', 'long'] &&
+          data.maxTravelMinutes is int &&
+          data.maxTravelMinutes in [0, 15, 30, 45, 60] &&
+          data.planPreference in ['simple', 'balanced', 'detailed']);
+    }
+
+    function isValidUser(data) {
+      return hasValidProfileSchema(data) &&
         validString(data.uid, 1, 128) &&
         validString(data.email, 3, 254) &&
         data.email == request.auth.token.email &&
         validString(data.displayName, 1, 80) &&
-        validString(data.phone, 0, 24) &&
+        validPhone(data.phone, true) &&
         (data.birthYear == null || (data.birthYear is int && data.birthYear >= 1900 && data.birthYear <= 2100)) &&
         validString(data.preferredLanguage, 1, 40) &&
         validString(data.secondaryLanguage, 0, 40) &&
@@ -127,7 +151,6 @@ service cloud.firestore {
         data.personalizationConsent == true &&
         data.locationUseConsent is bool &&
         data.onboardingComplete is bool &&
-        data.schemaVersion == 1 &&
         data.createdAt is timestamp &&
         isRecent(data.updatedAt);
     }
@@ -146,7 +169,7 @@ service cloud.firestore {
         data.uid == request.auth.uid &&
         validString(data.name, 1, 80) &&
         validString(data.relationship, 1, 40) &&
-        validString(data.phone, 7, 24) &&
+        validPhone(data.phone, false) &&
         validOptionalEmail(data.email) &&
         data.isPrimary is bool &&
         data.canReceiveSms is bool &&

@@ -10,8 +10,9 @@ const profile: SeniorProfile = {
   preferredLanguage: "Chinese", secondaryLanguage: "English", addressLine1: "10 Private Lane", addressLine2: "4B",
   city: "Pasadena", state: "CA", postalCode: "91101", mobility: "cane", transportModes: ["Family or friend"],
   hobbies: ["Gardening"], otherInterests: "Tea", preferredDays: ["Weekdays"], preferredTimes: ["Morning"],
-  communicationNotes: "", accessibilityNotes: "Avoid stairs", contactPreference: "text", personalizationConsent: true,
-  locationUseConsent: true, onboardingComplete: true, schemaVersion: 1,
+  communicationNotes: "", accessibilityNotes: "Avoid stairs", contactPreference: "text", walkingTolerance: "short",
+  maxTravelMinutes: 30, planPreference: "simple", personalizationConsent: true,
+  locationUseConsent: true, onboardingComplete: true, schemaVersion: 2,
 };
 
 const contact: TrustedContact = { id: "c1", uid: "user-1", name: "Maya", relationship: "Daughter", phone: "555-0101", email: "maya@example.com", isPrimary: true, canReceiveSms: true, permissionConfirmed: true };
@@ -19,7 +20,15 @@ const contact: TrustedContact = { id: "c1", uid: "user-1", name: "Maya", relatio
 describe("toPlannerProfile", () => {
   it("shares useful constraints without raw PII", () => {
     const summary = toPlannerProfile(profile, [contact], 2026);
-    expect(summary).toMatchObject({ firstName: "Maria", approximateAge: 76, area: "Pasadena, CA", trustedContactAvailable: true });
+    expect(summary).toMatchObject({
+      firstName: "Maria",
+      approximateAge: 76,
+      area: "Pasadena, CA",
+      walkingTolerance: "short",
+      maxTravelMinutes: 30,
+      planPreference: "simple",
+      trustedContactAvailable: true,
+    });
     expect(JSON.stringify(summary)).not.toContain("Private Lane");
     expect(JSON.stringify(summary)).not.toContain("555-");
     expect(JSON.stringify(summary)).not.toContain("@example.com");
@@ -45,7 +54,10 @@ describe("stored profile compatibility", () => {
       preferredLanguage: "English",
       transportModes: [],
       onboardingComplete: false,
-      schemaVersion: 1,
+      walkingTolerance: "short",
+      maxTravelMinutes: 30,
+      planPreference: "simple",
+      schemaVersion: 2,
     });
     expect(() => migrated.displayName.trim()).not.toThrow();
     expect(() => migrated.accessibilityNotes.trim()).not.toThrow();

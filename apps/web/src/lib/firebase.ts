@@ -129,16 +129,18 @@ export async function continueWithEmail(
   password: string,
   displayName: string,
 ): Promise<AppUser> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedName = displayName.trim();
   if (auth) {
     const result = mode === "signup"
-      ? await createUserWithEmailAndPassword(auth, email, password)
-      : await signInWithEmailAndPassword(auth, email, password);
-    if (mode === "signup" && displayName.trim()) {
-      await updateProfile(result.user, { displayName: displayName.trim() });
+      ? await createUserWithEmailAndPassword(auth, normalizedEmail, password)
+      : await signInWithEmailAndPassword(auth, normalizedEmail, password);
+    if (mode === "signup" && normalizedName) {
+      await updateProfile(result.user, { displayName: normalizedName });
     }
     return mapUser(result.user);
   }
-  return createDemoUser(displayName || email.split("@")[0], email);
+  return createDemoUser(normalizedName || normalizedEmail.split("@")[0], normalizedEmail);
 }
 
 function createDemoUser(displayName: string, email: string): AppUser {

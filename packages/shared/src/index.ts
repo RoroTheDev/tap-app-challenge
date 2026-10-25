@@ -56,10 +56,13 @@ export interface SeniorProfile {
   communicationNotes: string;
   accessibilityNotes: string;
   contactPreference: "call" | "text" | "email";
+  walkingTolerance: "short" | "moderate" | "long";
+  maxTravelMinutes: 0 | 15 | 30 | 45 | 60;
+  planPreference: "simple" | "balanced" | "detailed";
   personalizationConsent: boolean;
   locationUseConsent: boolean;
   onboardingComplete: boolean;
-  schemaVersion: 1;
+  schemaVersion: 2;
 }
 
 export interface TrustedContact {
@@ -84,6 +87,9 @@ export interface PlannerProfile {
   interests: string[];
   preferredDays: string[];
   preferredTimes: string[];
+  walkingTolerance: SeniorProfile["walkingTolerance"];
+  maxTravelMinutes: SeniorProfile["maxTravelMinutes"];
+  planPreference: SeniorProfile["planPreference"];
   accessibilitySupportRequested: boolean;
   trustedContactAvailable: boolean;
 }
@@ -111,19 +117,32 @@ export function normalizeSeniorProfile(input: unknown, identity: ProfileIdentity
     "uid", "email", "displayName", "phone", "birthYear", "preferredLanguage", "secondaryLanguage",
     "addressLine1", "addressLine2", "city", "state", "postalCode", "mobility", "transportModes",
     "hobbies", "otherInterests", "preferredDays", "preferredTimes", "communicationNotes",
-    "accessibilityNotes", "contactPreference", "personalizationConsent", "locationUseConsent",
+    "accessibilityNotes", "contactPreference", "walkingTolerance", "maxTravelMinutes", "planPreference",
+    "personalizationConsent", "locationUseConsent",
     "onboardingComplete", "schemaVersion",
   ];
-  const isCompleteCurrentRecord = data.schemaVersion === 1 && expectedFields.every((field) => field in data);
+  const isCompleteCurrentRecord = data.schemaVersion === 2 && expectedFields.every((field) => field in data);
   const birthYear = typeof data.birthYear === "number" && Number.isInteger(data.birthYear) ? data.birthYear : null;
   const mobilityOptions: SeniorProfile["mobility"][] = ["none", "cane", "walker", "wheelchair", "other"];
   const contactOptions: SeniorProfile["contactPreference"][] = ["call", "text", "email"];
+  const walkingOptions: SeniorProfile["walkingTolerance"][] = ["short", "moderate", "long"];
+  const travelOptions: SeniorProfile["maxTravelMinutes"][] = [0, 15, 30, 45, 60];
+  const planOptions: SeniorProfile["planPreference"][] = ["simple", "balanced", "detailed"];
   const mobility = mobilityOptions.includes(data.mobility as SeniorProfile["mobility"])
     ? data.mobility as SeniorProfile["mobility"]
     : "none";
   const contactPreference = contactOptions.includes(data.contactPreference as SeniorProfile["contactPreference"])
     ? data.contactPreference as SeniorProfile["contactPreference"]
     : "text";
+  const walkingTolerance = walkingOptions.includes(data.walkingTolerance as SeniorProfile["walkingTolerance"])
+    ? data.walkingTolerance as SeniorProfile["walkingTolerance"]
+    : "short";
+  const maxTravelMinutes = travelOptions.includes(data.maxTravelMinutes as SeniorProfile["maxTravelMinutes"])
+    ? data.maxTravelMinutes as SeniorProfile["maxTravelMinutes"]
+    : 30;
+  const planPreference = planOptions.includes(data.planPreference as SeniorProfile["planPreference"])
+    ? data.planPreference as SeniorProfile["planPreference"]
+    : "simple";
 
   return {
     uid: identity.uid,
@@ -147,10 +166,13 @@ export function normalizeSeniorProfile(input: unknown, identity: ProfileIdentity
     communicationNotes: stringValue(data.communicationNotes),
     accessibilityNotes: stringValue(data.accessibilityNotes),
     contactPreference,
+    walkingTolerance,
+    maxTravelMinutes,
+    planPreference,
     personalizationConsent: data.personalizationConsent === true,
     locationUseConsent: data.locationUseConsent === true,
     onboardingComplete: isCompleteCurrentRecord && data.onboardingComplete === true,
-    schemaVersion: 1,
+    schemaVersion: 2,
   };
 }
 
@@ -169,6 +191,9 @@ export function toPlannerProfile(
     interests: [...profile.hobbies, profile.otherInterests].filter(Boolean),
     preferredDays: profile.preferredDays,
     preferredTimes: profile.preferredTimes,
+    walkingTolerance: profile.walkingTolerance,
+    maxTravelMinutes: profile.maxTravelMinutes,
+    planPreference: profile.planPreference,
     accessibilitySupportRequested: Boolean(profile.accessibilityNotes.trim()),
     trustedContactAvailable: contacts.some((contact) => contact.permissionConfirmed),
   };
