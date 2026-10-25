@@ -21,7 +21,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import type { SeniorProfile, TrustedContact } from "@tap/shared";
+import { normalizeSeniorProfile, normalizeTrustedContacts, type SeniorProfile, type TrustedContact } from "@tap/shared";
 import { shouldFallbackToRedirect } from "./auth-flow";
 
 const firebaseConfig = {
@@ -166,11 +166,18 @@ export async function loadProfile(uid: string) {
     getDocs(collection(db, "users", uid, "trustedContacts")),
   ]);
   return {
-    profile: profileSnapshot.exists() ? (profileSnapshot.data() as SeniorProfile) : null,
-    contacts: contactSnapshot.docs.map((item) => ({
-      ...(item.data() as TrustedContact),
+    profile: profileSnapshot.exists()
+      ? normalizeSeniorProfile(profileSnapshot.data(), {
+        uid,
+        email: auth?.currentUser?.email ?? "",
+        displayName: auth?.currentUser?.displayName ?? "TAP member",
+      })
+      : null,
+    contacts: normalizeTrustedContacts(contactSnapshot.docs.map((item) => ({
+      ...item.data(),
       id: item.id,
-    })),
+      uid,
+    })), uid),
   };
 }
 

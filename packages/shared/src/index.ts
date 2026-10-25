@@ -88,6 +88,72 @@ export interface PlannerProfile {
   trustedContactAvailable: boolean;
 }
 
+type ProfileIdentity = Pick<SeniorProfile, "uid" | "email" | "displayName">;
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function stringList(value: unknown, allowed?: readonly string[]) {
+  if (!Array.isArray(value)) return [];
+  const strings = value.filter((item): item is string => typeof item === "string");
+  return allowed ? strings.filter((item) => allowed.includes(item)) : strings;
+}
+
+/** Converts legacy, partial, or malformed stored data into a safe current profile. */
+export function normalizeSeniorProfile(input: unknown, identity: ProfileIdentity): SeniorProfile {
+  const data = recordValue(input);
+  const expectedFields: Array<keyof SeniorProfile> = [
+    "uid", "email", "displayName", "phone", "birthYear", "preferredLanguage", "secondaryLanguage",
+    "addressLine1", "addressLine2", "city", "state", "postalCode", "mobility", "transportModes",
+    "hobbies", "otherInterests", "preferredDays", "preferredTimes", "communicationNotes",
+    "accessibilityNotes", "contactPreference", "personalizationConsent", "locationUseConsent",
+    "onboardingComplete", "schemaVersion",
+  ];
+  const isCompleteCurrentRecord = data.schemaVersion === 1 && expectedFields.every((field) => field in data);
+  const birthYear = typeof data.birthYear === "number" && Number.isInteger(data.birthYear) ? data.birthYear : null;
+  const mobilityOptions: SeniorProfile["mobility"][] = ["none", "cane", "walker", "wheelchair", "other"];
+  const contactOptions: SeniorProfile["contactPreference"][] = ["call", "text", "email"];
+  const mobility = mobilityOptions.includes(data.mobility as SeniorProfile["mobility"])
+    ? data.mobility as SeniorProfile["mobility"]
+    : "none";
+  const contactPreference = contactOptions.includes(data.contactPreference as SeniorProfile["contactPreference"])
+    ? data.contactPreference as SeniorProfile["contactPreference"]
+    : "text";
+
+  return {
+    uid: identity.uid,
+    email: identity.email,
+    displayName: stringValue(data.displayName, identity.displayName || identity.email.split("@")[0] || "TAP member"),
+    phone: stringValue(data.phone),
+    birthYear,
+    preferredLanguage: stringValue(data.preferredLanguage, "English"),
+    secondaryLanguage: stringValue(data.secondaryLanguage),
+    addressLine1: stringValue(data.addressLine1),
+    addressLine2: stringValue(data.addressLine2),
+    city: stringValue(data.city),
+    state: stringValue(data.state),
+    postalCode: stringValue(data.postalCode),
+    mobility,
+    transportModes: stringList(data.transportModes, transportOptions),
+    hobbies: stringList(data.hobbies, hobbyOptions),
+    otherInterests: stringValue(data.otherInterests),
+    preferredDays: stringList(data.preferredDays, ["Weekdays", "Weekends"]),
+    preferredTimes: stringList(data.preferredTimes, ["Morning", "Afternoon", "Evening"]),
+    communicationNotes: stringValue(data.communicationNotes),
+    accessibilityNotes: stringValue(data.accessibilityNotes),
+    contactPreference,
+    personalizationConsent: data.personalizationConsent === true,
+    locationUseConsent: data.locationUseConsent === true,
+    onboardingComplete: isCompleteCurrentRecord && data.onboardingComplete === true,
+    schemaVersion: 1,
+  };
+}
+
 export function toPlannerProfile(
   profile: SeniorProfile,
   contacts: TrustedContact[],
@@ -108,6 +174,16 @@ export function toPlannerProfile(
   };
 }
 
-export function normalizeTrustedContacts(contacts: TrustedContact[]) {
-  return contacts.map((contact, index) => ({ ...contact, isPrimary: index === 0 }));
+export function normalizeTrustedContacts(contacts: ReadonlyArray<Partial<TrustedContact>>, defaultUid = "") {
+  return contacts.map((contact, index): TrustedContact => ({
+    id: stringValue(contact.id, `contact-${index + 1}`),
+    uid: stringValue(contact.uid, defaultUid),
+    name: stringValue(contact.name),
+    relationship: stringValue(contact.relationship),
+    phone: stringValue(contact.phone),
+    email: stringValue(contact.email),
+    isPrimary: index === 0,
+    canReceiveSms: contact.canReceiveSms !== false,
+    permissionConfirmed: contact.permissionConfirmed === true,
+  }));
 }

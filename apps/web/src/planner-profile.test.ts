@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
+import { normalizeSeniorProfile, normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
 import { onboardingStepError } from "./lib/validation";
 import { buildHubPlan } from "./lib/hub-plan";
 import { getHubCopy, getTextDirection, speechLocales } from "./lib/localization";
@@ -30,6 +30,39 @@ describe("toPlannerProfile", () => {
   it("recognizes any approved contact after primary contacts change", () => {
     expect(toPlannerProfile(profile, [{ ...contact, isPrimary: false }], 2026).trustedContactAvailable).toBe(true);
     expect(normalizeTrustedContacts([{ ...contact, isPrimary: false }, { ...contact, id: "c2" }]).map((item) => item.isPrimary)).toEqual([true, false]);
+  });
+});
+
+describe("stored profile compatibility", () => {
+  it("repairs a legacy partial profile and returns it to onboarding", () => {
+    const migrated = normalizeSeniorProfile(
+      { displayName: "Maria", city: "Pasadena", onboardingComplete: true },
+      { uid: "user-1", email: "private@example.com", displayName: "Maria Chen" },
+    );
+    expect(migrated).toMatchObject({
+      uid: "user-1",
+      phone: "",
+      preferredLanguage: "English",
+      transportModes: [],
+      onboardingComplete: false,
+      schemaVersion: 1,
+    });
+    expect(() => migrated.displayName.trim()).not.toThrow();
+    expect(() => migrated.accessibilityNotes.trim()).not.toThrow();
+  });
+
+  it("repairs incomplete trusted contacts without inventing consent", () => {
+    expect(normalizeTrustedContacts([{ id: "c1", name: "Maya" }], "user-1")).toEqual([{
+      id: "c1",
+      uid: "user-1",
+      name: "Maya",
+      relationship: "",
+      phone: "",
+      email: "",
+      isPrimary: true,
+      canReceiveSms: true,
+      permissionConfirmed: false,
+    }]);
   });
 });
 

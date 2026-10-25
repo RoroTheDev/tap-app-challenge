@@ -11,6 +11,7 @@ import {
 import {
   hobbyOptions,
   languageOptions,
+  normalizeSeniorProfile,
   normalizeTrustedContacts,
   transportOptions,
   type SeniorProfile,
@@ -22,36 +23,6 @@ import { onboardingStepError } from "../lib/validation";
 const steps = ["About you", "Getting around", "What you enjoy", "Trusted circle", "Privacy"];
 const dayOptions = ["Weekdays", "Weekends"];
 const timeOptions = ["Morning", "Afternoon", "Evening"];
-
-function emptyProfile(user: AppUser): SeniorProfile {
-  return {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    phone: "",
-    birthYear: null,
-    preferredLanguage: "English",
-    secondaryLanguage: "",
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    mobility: "none",
-    transportModes: [],
-    hobbies: [],
-    otherInterests: "",
-    preferredDays: [],
-    preferredTimes: [],
-    communicationNotes: "",
-    accessibilityNotes: "",
-    contactPreference: "text",
-    personalizationConsent: true,
-    locationUseConsent: false,
-    onboardingComplete: true,
-    schemaVersion: 1,
-  };
-}
 
 function newContact(uid: string, isPrimary = false): TrustedContact {
   return {
@@ -81,8 +52,8 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
     try { return JSON.parse(sessionStorage.getItem(draftKey) ?? "null") as { profile?: SeniorProfile; contacts?: TrustedContact[] } | null; } catch { return null; }
   }, [draftKey, initialProfile]);
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState<SeniorProfile>(initialProfile ?? draft?.profile ?? emptyProfile(user));
-  const [contacts, setContacts] = useState<TrustedContact[]>(normalizeTrustedContacts(initialContacts.length ? initialContacts : draft?.contacts?.length ? draft.contacts : [newContact(user.uid, true)]));
+  const [profile, setProfile] = useState<SeniorProfile>(() => normalizeSeniorProfile(initialProfile ?? draft?.profile, user));
+  const [contacts, setContacts] = useState<TrustedContact[]>(normalizeTrustedContacts(initialContacts.length ? initialContacts : draft?.contacts?.length ? draft.contacts : [newContact(user.uid, true)], user.uid));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -105,14 +76,14 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   }
 
   function updateContact(id: string, field: keyof TrustedContact, value: string | boolean) {
-    setContacts((current) => normalizeTrustedContacts(current.map((contact) => contact.id === id ? { ...contact, [field]: value } : contact)));
+    setContacts((current) => normalizeTrustedContacts(current.map((contact) => contact.id === id ? { ...contact, [field]: value } : contact), user.uid));
   }
 
   async function finish() {
     setSaving(true);
     setError("");
     try {
-      const activeContacts = normalizeTrustedContacts(contacts.filter((contact) => contact.name.trim()));
+      const activeContacts = normalizeTrustedContacts(contacts.filter((contact) => contact.name.trim()), user.uid);
       await onSave({ ...profile, onboardingComplete: true }, activeContacts);
       sessionStorage.removeItem(draftKey);
     } catch {
@@ -229,7 +200,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
             <div className="contact-list">
               {contacts.map((contact, index) => (
                 <article className="contact-card" key={contact.id}>
-                  <div className="contact-card-title"><h3>{index === 0 ? "Primary contact" : `Contact ${index + 1}`}</h3><button type="button" className="text-button danger" onClick={() => setContacts((current) => normalizeTrustedContacts(current.filter((item) => item.id !== contact.id)))}><Trash2 /> Remove</button></div>
+                  <div className="contact-card-title"><h3>{index === 0 ? "Primary contact" : `Contact ${index + 1}`}</h3><button type="button" className="text-button danger" onClick={() => setContacts((current) => normalizeTrustedContacts(current.filter((item) => item.id !== contact.id), user.uid))}><Trash2 /> Remove</button></div>
                   <div className="field-grid two">
                     <label>Name<input value={contact.name} onChange={(event) => updateContact(contact.id, "name", event.target.value)} maxLength={80} placeholder="Full name" /></label>
                     <label>Relationship<input value={contact.relationship} onChange={(event) => updateContact(contact.id, "relationship", event.target.value)} maxLength={40} placeholder="Daughter, friend, neighbor…" /></label>
@@ -241,7 +212,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
                 </article>
               ))}
             </div>
-            {contacts.length < 5 && <button type="button" className="secondary-button" onClick={() => setContacts((current) => normalizeTrustedContacts([...current, newContact(user.uid)]))}><Plus /> Add {contacts.length ? "another person" : "a trusted person"}</button>}
+            {contacts.length < 5 && <button type="button" className="secondary-button" onClick={() => setContacts((current) => normalizeTrustedContacts([...current, newContact(user.uid)], user.uid))}><Plus /> Add {contacts.length ? "another person" : "a trusted person"}</button>}
           </div>
         )}
 
