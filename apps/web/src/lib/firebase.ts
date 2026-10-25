@@ -6,6 +6,7 @@ import {
   getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   updateProfile,
@@ -21,6 +22,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import type { SeniorProfile, TrustedContact } from "@tap/shared";
+import { shouldFallbackToRedirect } from "./auth-flow";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -61,25 +63,35 @@ function mapUser(user: User): AppUser {
 export function observeUser(callback: (user: AppUser | null) => void, onError?: (error: unknown) => void) {
   if (auth) {
     let stopped = false;
-    let unsubscribe: () => void = () => {};
     const pendingRedirect = sessionStorage.getItem(GOOGLE_REDIRECT_KEY) === "true";
-    void getRedirectResult(auth)
-      .then(() => {
-        sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
-        if (stopped) return;
-        if (pendingRedirect && !auth.currentUser) {
-          const error = new Error("Google sign-in did not finish.");
-          Object.assign(error, { code: "auth/redirect-incomplete" });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        if (!stopped) callback(user ? mapUser(user) : null);
+      },
+      onError,
+    );
+
+    if (pendingRedirect) {
+      void getRedirectResult(auth)
+        .then((result) => {
+          sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+          if (stopped) return;
+          if (!result?.user && !auth.currentUser) {
+            const error = new Error("Google sign-in did not finish.");
+            Object.assign(error, { code: "auth/redirect-incomplete" });
+            onError?.(error);
+          }
+        })
+        .catch((error) => {
+          sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+          if (stopped) return;
           onError?.(error);
-        }
-        unsubscribe = onAuthStateChanged(auth, (user) => callback(user ? mapUser(user) : null), onError);
-      })
-      .catch((error) => {
-        sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
-        if (stopped) return;
-        onError?.(error);
-        unsubscribe = onAuthStateChanged(auth, (user) => callback(user ? mapUser(user) : null), onError);
-      });
+        });
+    } else {
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+    }
+
     return () => { stopped = true; unsubscribe(); };
   }
   const stored = localStorage.getItem(DEMO_USER_KEY);
@@ -89,14 +101,24 @@ export function observeUser(callback: (user: AppUser | null) => void, onError?: 
 
 export async function continueWithGoogle(): Promise<AppUser | null> {
   if (auth) {
-    sessionStorage.setItem(GOOGLE_REDIRECT_KEY, "true");
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
     try {
-      await signInWithRedirect(auth, new GoogleAuthProvider());
-    } catch (error) {
+      const result = await signInWithPopup(auth, provider);
       sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
-      throw error;
+      return mapUser(result.user);
+    } catch (error) {
+      if (!shouldFallbackToRedirect(error)) throw error;
+
+      sessionStorage.setItem(GOOGLE_REDIRECT_KEY, "true");
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (redirectError) {
+        sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+        throw redirectError;
+      }
+      return null;
     }
-    return null;
   }
   return createDemoUser("Alex Rivera", "alex@example.com");
 }

@@ -3,6 +3,7 @@ import { normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type Tr
 import { onboardingStepError } from "./lib/validation";
 import { buildHubPlan } from "./lib/hub-plan";
 import { getHubCopy, getTextDirection, speechLocales } from "./lib/localization";
+import { shouldFallbackToRedirect } from "./lib/auth-flow";
 
 const profile: SeniorProfile = {
   uid: "user-1", email: "private@example.com", displayName: "Maria Chen", phone: "555-0100", birthYear: 1950,
@@ -52,5 +53,14 @@ describe("personalized hub", () => {
     const copy = getHubCopy("English");
     expect(buildHubPlan("I want to go shopping", copy, true).steps.map((step) => step.tag)).toEqual(["places", "transport", "contact", "fallback"]);
     expect(buildHubPlan("I want to go shopping", copy, false).steps.map((step) => step.tag)).toEqual(["places", "transport", "fallback"]);
+  });
+});
+
+describe("Google authentication fallback", () => {
+  it("uses redirect only when the browser cannot complete a popup", () => {
+    expect(shouldFallbackToRedirect({ code: "auth/popup-blocked" })).toBe(true);
+    expect(shouldFallbackToRedirect({ code: "auth/web-storage-unsupported" })).toBe(true);
+    expect(shouldFallbackToRedirect({ code: "auth/popup-closed-by-user" })).toBe(false);
+    expect(shouldFallbackToRedirect({ code: "auth/unauthorized-domain" })).toBe(false);
   });
 });
