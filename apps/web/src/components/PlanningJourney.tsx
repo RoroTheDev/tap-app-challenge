@@ -52,7 +52,15 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         const existing = await readPlanningSession(user, sessionId);
         if (existing?.plan) {
           timers.forEach(window.clearTimeout);
-          if (!stopped) { setPlan(existing.plan); setPhase("ready"); }
+          if (!stopped) {
+            setPlan(existing.plan);
+            setPhase("ready");
+            if (existing.coordinationStatus) setCoordination({
+              id: existing.coordinationId ?? "restored-coordination",
+              status: existing.coordinationStatus,
+              expiresAt: existing.coordinationExpiresAt ?? new Date().toISOString(),
+            });
+          }
           return;
         }
         if (!existing) await createPlanningSession(user, sessionId, request);
@@ -61,7 +69,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         timers.forEach(window.clearTimeout);
         setPlan(result);
         setPhase("ready");
-        await updatePlanningSession(user, sessionId, { phase: "ready", status: "ready", plan: result });
+        await updatePlanningSession(user, sessionId, { phase: "ready", status: "ready", plan: result }).catch(() => undefined);
       } catch (reason) {
         if (!stopped) {
           setError(reason instanceof Error ? reason.message : "TAP could not prepare this plan.");
@@ -116,12 +124,23 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
     try {
       const result = await sendContactRequest(user, primaryContact, plan.contactMessage.draft);
       setCoordination({ id: result.confirmationId, status: result.simulated ? "timed_out" : result.status, expiresAt: result.expiresAt });
-      await updatePlanningSession(user, sessionId, { status: result.simulated ? "fallback" : "waiting_for_contact", coordinationStatus: result.simulated ? "timed_out" : result.status });
+      await updatePlanningSession(user, sessionId, {
+        status: result.simulated ? "fallback" : "waiting_for_contact",
+        coordinationStatus: result.simulated ? "timed_out" : result.status,
+        coordinationId: result.confirmationId,
+        coordinationExpiresAt: result.expiresAt,
+      });
     } catch (reason) {
       setContactError(reason instanceof Error ? reason.message : "TAP could not contact this person.");
       setCoordination({ id: "failed", status: "failed", expiresAt: new Date().toISOString() });
       void updatePlanningSession(user, sessionId, { coordinationStatus: "failed", status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
     } finally { setContactBusy(false); }
+  }
+
+  function useBackupInstead() {
+    setContactReview(false);
+    setCoordination({ id: "manual-fallback", status: "declined", expiresAt: new Date().toISOString() });
+    void updatePlanningSession(user, sessionId, { coordinationStatus: "declined", coordinationId: "manual-fallback", coordinationExpiresAt: new Date().toISOString(), status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
   }
 
   return (
@@ -146,6 +165,10 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
 
         {plan && <section className="decision-area">
           <div className="decision-heading"><div><span>LIVE DECISION TREE</span><h2>{feature.resultLabel}</h2></div><small>Backups stay ready until the plan is complete.</small></div>
+          <div className="next-step-banner">
+            <span>YOUR NEXT STEP</span>
+            <strong>{branch === "coordination" ? `Ask ${primaryContact?.name || "your trusted contact"} if they can help.` : branch === "fallback" ? "Use the independent ride option below." : "Review the route and go when you are ready."}</strong>
+          </div>
           <div className="decision-tree">
             <article className={`decision-node primary ${branch === "primary" ? "selected" : ""}`}>
               <div className="node-top"><span className="node-letter">A</span><span className="node-state">{branch === "primary" ? "Selected plan" : "Primary option"}</span></div>
@@ -157,7 +180,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
                 {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
                 {primaryActivity && <span className="source-freshness"><Check /> {primaryActivity.source === "ticketmaster" ? "Live Ticketmaster listing" : "Verified local senior program"} · checked {new Date(primaryActivity.lastVerifiedAt).toLocaleDateString()}</span>}
                 <small>{plan.rankedOptions[0].reason}</small>
-                <div className="primary-plan-actions"><strong>Your next step</strong><a className="primary-button link-button" href={plan.rankedOptions[0].place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></div>
+                <div className="primary-plan-actions"><strong>{branch === "coordination" ? "Preview the route" : "Route ready"}</strong><a className="primary-button link-button" href={plan.rankedOptions[0].place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></div>
               </> : <p>TAP found no matching place yet.</p>}
               {!needsContact && <div className="node-confirmed"><Check /> Ready to go</div>}
               {needsContact && branch === "primary" && <div className="node-confirmed"><Check /> Help accepted — Plan A is confirmed</div>}
@@ -168,10 +191,10 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
               <div className="node-top"><MessageCircle /><span className="node-state">Trusted contact checkpoint</span></div>
               <h3>Ask {primaryContact?.name || "your trusted contact"}?</h3>
               {!contactReview && !coordination && <button className="primary-button" onClick={() => setContactReview(true)}>Review and continue</button>}
-              {contactReview && !coordination && <><p className="message-preview">{plan.contactMessage.draft}</p><div className="contact-buttons"><button className="secondary-button" onClick={() => setContactReview(false)}>Not now</button><button className="primary-button" disabled={contactBusy} onClick={() => void askTrustedContact()}>{contactBusy ? "Sending…" : "Confirm and send"} <Send /></button></div></>}
+              {contactReview && !coordination && <><p className="message-preview">{plan.contactMessage.draft}</p><div className="contact-buttons"><button className="secondary-button" onClick={useBackupInstead}>Use backup instead</button><button className="primary-button" disabled={contactBusy} onClick={() => void askTrustedContact()}>{contactBusy ? "Sending…" : "Confirm and send"} <Send /></button></div></>}
               {coordination?.status === "waiting" && <div className="coordination-status waiting"><Clock3 /> Waiting up to two minutes for YES or NO…</div>}
               {coordination?.status === "accepted" && <div className="coordination-status accepted"><Check /> Accepted — continuing with Plan A.</div>}
-              {coordination && ["declined", "timed_out", "failed"].includes(coordination.status) && <div className="coordination-status fallback"><RotateCcw /> {coordination.status === "declined" ? "They aren’t available." : coordination.status === "timed_out" ? "No reply arrived in time." : "The message could not be delivered."} TAP activated Plan B.</div>}
+              {coordination && ["declined", "timed_out", "failed"].includes(coordination.status) && <div className="coordination-status fallback"><RotateCcw /> {coordination.id === "manual-fallback" ? "You chose the backup." : coordination.status === "declined" ? "They aren’t available." : coordination.status === "timed_out" ? "No reply arrived in time." : "The message could not be delivered."} TAP activated Plan B.</div>}
               {contactError && <div className="form-error" role="alert">{contactError}</div>}
             </article>}
 

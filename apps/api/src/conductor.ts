@@ -2,6 +2,16 @@ import type { ConductorResponse, PlannerProfile } from "@tap/shared";
 import { computeTransport, findActivities, findPlaces, messagingMode, parseIntent } from "./adapters.js";
 import type { ApiConfig } from "./config.js";
 
+function activityRelevance(text: string, interests: string[]) {
+  const normalized = text.toLowerCase();
+  return interests.reduce((score, interest) => {
+    const phrase = interest.trim().toLowerCase();
+    if (!phrase) return score;
+    const words = phrase.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+    return score + (normalized.includes(phrase) ? 3 : words.filter((word) => normalized.includes(word)).length);
+  }, 0);
+}
+
 export async function conduct(request: string, profile: PlannerProfile, config: ApiConfig): Promise<ConductorResponse> {
   const parsed = await parseIntent(request, profile, config);
   const [places, activities, fallbackOptions, contactDraft] = await Promise.all([
@@ -20,21 +30,29 @@ export async function conduct(request: string, profile: PlannerProfile, config: 
   const planPlaces = parsed.value.category === "activity" && activities.value.length
     ? activities.value.map((activity) => activity.venue)
     : places.value;
+  const activityByVenue = new Map(activities.value.map((activity) => [activity.venue.id, activity]));
   const transports = await Promise.all(planPlaces.map((place, index) => computeTransport(place, profile, index, config)));
   const rankedOptions = planPlaces
-    .map((place, index) => ({
-      place,
-      transport: transports[index],
-      score: (transports[index].feasible ? 100 : 0) - transports[index].durationMinutes,
-    }))
+    .map((place, index) => {
+      const activity = activityByVenue.get(place.id);
+      const relevance = activity ? activityRelevance(`${activity.title} ${activity.description}`, profile.interests) : 0;
+      return {
+        place,
+        transport: transports[index],
+        relevance,
+        score: (transports[index].feasible ? 100 : 0) - transports[index].durationMinutes + relevance * 12,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, profile.planPreference === "simple" ? 1 : profile.planPreference === "balanced" ? 3 : 5)
-    .map(({ place, transport }, index) => ({
+    .map(({ place, transport, relevance }, index) => ({
       rank: index + 1,
       place,
       transport,
-      reason: transport.feasible
-        ? `${transport.durationMinutes} minutes away and within the usual travel limit.`
+      reason: relevance > 0
+        ? `Matches saved interests and is ${transport.durationMinutes} minutes away.`
+        : transport.feasible
+          ? `${transport.durationMinutes} minutes away and within the usual travel limit.`
         : `A backup option if extra travel time is acceptable.`,
     }));
 

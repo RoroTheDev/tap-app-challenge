@@ -76,6 +76,14 @@ describe("stored profile compatibility", () => {
       permissionConfirmed: false,
     }]);
   });
+
+  it("returns a structurally complete but unusable profile to setup", () => {
+    const repaired = normalizeSeniorProfile(
+      { ...profile, city: "", onboardingComplete: true },
+      { uid: profile.uid, email: profile.email, displayName: profile.displayName },
+    );
+    expect(repaired.onboardingComplete).toBe(false);
+  });
 });
 
 describe("onboarding validation", () => {

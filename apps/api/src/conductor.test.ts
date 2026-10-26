@@ -32,10 +32,12 @@ describe("conductor", () => {
   });
 
   it("uses curated senior activities when an activity provider key is absent", async () => {
-    const result = await conduct("Find me a senior activity", { ...profile, interests: ["Fitness"] }, readConfig({ ALLOW_MOCKS: "true" }));
+    const result = await conduct("Find me a senior activity", { ...profile, interests: ["Learning"] }, readConfig({ ALLOW_MOCKS: "true" }));
     expect(result.intent.category).toBe("activity");
     expect(result.activities.length).toBeGreaterThan(0);
     expect(result.activities[0].source).toBe("curated");
+    expect(result.rankedOptions[0].place.name).toContain("South Fremont");
+    expect(result.rankedOptions[0].reason).toContain("saved interests");
     expect(result.integrations.events).toBe("curated");
   });
 });

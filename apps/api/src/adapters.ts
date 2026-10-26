@@ -142,6 +142,11 @@ function eventStartLabel(start: { dateTime?: string; localDate?: string; localTi
   return [start?.localDate, start?.localTime].filter(Boolean).join(" at ") || "Date and time available from organizer";
 }
 
+function providerText(value: unknown, fallback: string, maximum: number) {
+  const text = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  return text.length <= maximum ? text : `${text.slice(0, Math.max(0, maximum - 1)).trimEnd()}…`;
+}
+
 export async function findActivities(intent: ParsedIntent, profile: PlannerProfile, config: ApiConfig) {
   const curated = getCuratedSeniorActivities(profile.area);
   if (intent.category !== "activity") return { value: [] as ActivityCandidate[], source: "unavailable" as const };
@@ -178,24 +183,24 @@ export async function findActivities(intent: ParsedIntent, profile: PlannerProfi
       const dates = event.dates as { start?: { dateTime?: string; localDate?: string; localTime?: string } } | undefined;
       const price = (event.priceRanges as Array<{ min?: number; max?: number; currency?: string }> | undefined)?.[0];
       const accessibility = event.accessibility as { info?: string } | undefined;
-      const venueName = String(venue.name ?? "Event venue");
-      const venueAddress = [address?.line1, eventCity?.name, eventState?.stateCode].filter(Boolean).join(", ");
+      const venueName = providerText(venue.name, "Event venue", 160);
+      const venueAddress = providerText([address?.line1, eventCity?.name, eventState?.stateCode].filter(Boolean).join(", "), profile.area, 300);
       return [{
-        id: String(event.id ?? crypto.randomUUID()),
-        title: String(event.name ?? "Nearby event"),
-        description: String(event.info ?? event.pleaseNote ?? "See the organizer page for event details."),
-        startLabel: eventStartLabel(dates?.start),
-        costLabel: price?.min !== undefined ? `${price.currency ?? "$"} ${price.min}${price.max && price.max !== price.min ? `–${price.max}` : ""}` : "Check organizer for price",
-        accessibilityLabel: accessibility?.info || "Accessibility not confirmed",
-        registrationUrl: String(event.url ?? ""),
+        id: providerText(event.id, crypto.randomUUID(), 200),
+        title: providerText(event.name, "Nearby event", 200),
+        description: providerText(event.info ?? event.pleaseNote, "See the organizer page for event details.", 1_000),
+        startLabel: providerText(eventStartLabel(dates?.start), "Date and time available from organizer", 200),
+        costLabel: providerText(price?.min !== undefined ? `${price.currency ?? "$"} ${price.min}${price.max && price.max !== price.min ? `–${price.max}` : ""}` : "Check organizer for price", "Check organizer for price", 100),
+        accessibilityLabel: providerText(accessibility?.info, "Accessibility not confirmed", 500),
+        registrationUrl: providerText(event.url, "", 2_000),
         source: "ticketmaster",
-        sourceUrl: String(event.url ?? "https://www.ticketmaster.com"),
+        sourceUrl: providerText(event.url, "https://www.ticketmaster.com", 2_000),
         lastVerifiedAt: new Date().toISOString(),
         freshness: "live",
         venue: {
           id: `ticketmaster-${String(event.id ?? crypto.randomUUID())}`,
           name: venueName,
-          address: venueAddress || profile.area,
+          address: venueAddress,
           mapsUrl: `https://maps.google.com/?q=${encodeURIComponent(`${venueName} ${venueAddress}`)}`,
           latitude: location?.latitude ? Number(location.latitude) : null,
           longitude: location?.longitude ? Number(location.longitude) : null,

@@ -215,6 +215,8 @@ export interface PlanningSession {
   status: PlanningSessionStatus;
   plan: ConductorResponse | null;
   coordinationStatus: CoordinationStatus | null;
+  coordinationId: string | null;
+  coordinationExpiresAt: string | null;
   selectedOptionRank: number | null;
   createdAt: string;
   updatedAt: string;
@@ -298,7 +300,10 @@ export function normalizeSeniorProfile(input: unknown, identity: ProfileIdentity
     planPreference,
     personalizationConsent: data.personalizationConsent === true,
     locationUseConsent: data.locationUseConsent === true,
-    onboardingComplete: isCompleteCurrentRecord && data.onboardingComplete === true,
+    onboardingComplete: isCompleteCurrentRecord && data.onboardingComplete === true &&
+      stringValue(data.displayName).trim().length > 0 && stringValue(data.preferredLanguage).trim().length > 0 &&
+      stringValue(data.city).trim().length > 0 && stringValue(data.state).trim().length > 0 &&
+      data.personalizationConsent === true,
     schemaVersion: 2,
   };
 }

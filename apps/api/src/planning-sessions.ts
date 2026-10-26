@@ -67,6 +67,8 @@ export const updatePlanningSessionSchema = z.object({
   status: z.enum(statuses).optional(),
   plan: conductorResponseSchema.nullable().optional(),
   coordinationStatus: z.enum(coordinationStatuses).nullable().optional(),
+  coordinationId: boundedText(200).nullable().optional(),
+  coordinationExpiresAt: boundedText(40).nullable().optional(),
   selectedOptionRank: z.number().int().min(1).max(5).nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, "At least one session field is required.");
 
@@ -141,6 +143,8 @@ export async function createPlanningSession(
     status: "planning",
     plan: null,
     coordinationStatus: null,
+    coordinationId: null,
+    coordinationExpiresAt: null,
     selectedOptionRank: null,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),

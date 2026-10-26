@@ -49,6 +49,8 @@ export function updatePlanningSession(user: AppUser, id: string, update: {
   status?: PlanningSessionStatus;
   plan?: ConductorResponse | null;
   coordinationStatus?: PlanningSession["coordinationStatus"];
+  coordinationId?: string | null;
+  coordinationExpiresAt?: string | null;
   selectedOptionRank?: number | null;
 }) {
   if (user.isDemo) return Promise.resolve(null);

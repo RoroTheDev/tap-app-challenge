@@ -54,8 +54,8 @@ describe("planning sessions", () => {
   it("accepts only strict, bounded state updates", async () => {
     const store = new MemoryStore();
     await createPlanningSession("user-a", { id: "session_1234", request: "Go shopping" }, store, now);
-    const updated = await updatePlanningSession("user-a", "session_1234", { phase: "ready", status: "ready", selectedOptionRank: 1 }, store, new Date(now.getTime() + 1_000));
-    expect(updated).toMatchObject({ phase: "ready", status: "ready", selectedOptionRank: 1 });
+    const updated = await updatePlanningSession("user-a", "session_1234", { phase: "ready", status: "waiting_for_contact", coordinationStatus: "waiting", coordinationId: "request-123", coordinationExpiresAt: "2026-10-25T18:02:00.000Z", selectedOptionRank: 1 }, store, new Date(now.getTime() + 1_000));
+    expect(updated).toMatchObject({ phase: "ready", status: "waiting_for_contact", coordinationStatus: "waiting", coordinationId: "request-123", selectedOptionRank: 1 });
     expect(() => updatePlanningSessionSchema.parse({ ownerUid: "user-b" })).toThrow();
     expect(() => updatePlanningSessionSchema.parse({ plan: { text: "x".repeat(25_000) } })).toThrow();
   });

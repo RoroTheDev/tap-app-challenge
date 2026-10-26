@@ -43,9 +43,10 @@ interface OnboardingProps {
   initialProfile?: SeniorProfile | null;
   initialContacts?: TrustedContact[];
   onSave: (profile: SeniorProfile, contacts: TrustedContact[]) => Promise<void>;
+  onCancel?: () => void;
 }
 
-export function Onboarding({ user, initialProfile, initialContacts = [], onSave }: OnboardingProps) {
+export function Onboarding({ user, initialProfile, initialContacts = [], onSave, onCancel }: OnboardingProps) {
   const draftKey = `tap.onboarding-draft.${user.uid}`;
   const draft = useMemo(() => {
     if (initialProfile) return null;
@@ -64,6 +65,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   const firstName = profile.displayName.trim().split(/\s+/)[0] || "there";
   const stepError = useMemo(() => onboardingStepError(step, profile, contacts), [contacts, profile, step]);
   const canContinue = !stepError;
+  const editing = Boolean(initialProfile?.onboardingComplete);
 
   useEffect(() => {
     try {
@@ -94,6 +96,12 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
   }
 
   async function finish() {
+    const invalidStep = [0, 1, 3, 4].find((candidate) => onboardingStepError(candidate, profile, contacts));
+    if (invalidStep !== undefined) {
+      setStep(invalidStep);
+      setError(onboardingStepError(invalidStep, profile, contacts));
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -117,6 +125,9 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
         <span className="step-count">Step {step + 1} of {steps.length}</span>
       </header>
       <div className="progress-track" aria-label={`Onboarding progress: step ${step + 1} of ${steps.length}`}><span style={{ width: `${progress}%` }} /></div>
+      {editing && <nav className="profile-step-nav" aria-label="Profile sections">
+        {steps.map((label, index) => <button type="button" key={label} className={index === step ? "active" : ""} aria-current={index === step ? "step" : undefined} onClick={() => setStep(index)}>{label}</button>)}
+      </nav>}
 
       <section className="quiz-card">
         {step === 0 && (
@@ -268,16 +279,22 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave 
         {stepError && <div className="form-guidance" id="step-help" role="status">{stepError}</div>}
         {draftWarning && <div className="form-guidance" role="status">{draftWarning}</div>}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <footer className="quiz-actions" aria-busy={saving}>
-          {step > 0 ? <button type="button" className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button> : <span />}
-          {step < steps.length - 1 ? (
+        <footer className={`quiz-actions ${editing ? "editing-actions" : ""}`} aria-busy={saving}>
+          {editing
+            ? <button type="button" className="back-button" onClick={onCancel}><ArrowLeft /> Cancel</button>
+            : step > 0
+              ? <button type="button" className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button>
+              : <span />}
+          {editing ? (
+            <button type="button" className="primary-button" disabled={saving} onClick={() => void finish()}>{saving ? "Saving…" : "Save changes"} {!saving && <Check />}</button>
+          ) : step < steps.length - 1 ? (
             <button type="button" className="primary-button" aria-describedby={stepError ? "step-help" : undefined} disabled={!canContinue} onClick={() => setStep((value) => value + 1)}>Continue <ArrowRight /></button>
           ) : (
             <button type="button" className="primary-button" disabled={!canContinue || saving} onClick={() => void finish()}>{saving ? "Saving…" : "Finish my profile"} {!saving && <Check />}</button>
           )}
         </footer>
       </section>
-      <p className="save-note"><LockKeyhole /> Your progress is saved in this browser until setup is complete.</p>
+      <p className="save-note"><LockKeyhole /> {editing ? "Changes are not saved until you choose Save changes." : "Your progress is saved in this browser until setup is complete."}</p>
     </main>
   );
 }

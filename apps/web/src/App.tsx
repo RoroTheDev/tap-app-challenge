@@ -195,7 +195,7 @@ export default function App() {
   if (loading) return <div className="loading-screen"><Logo /><span>Getting TAP ready…</span></div>;
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
   if (!user) return <><Landing openAuth={setAuthMode} openLegal={openLegal} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
-  if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
+  if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} onCancel={editing ? () => setEditing(false) : undefined} />;
   if (activePlan?.uid === user.uid) return <PlanningJourney sessionId={activePlan.id} request={activePlan.request} user={user} profile={profile} contacts={contacts} onClose={closePlan} />;
   return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} onStartPlan={startPlan} />;
 }
