@@ -131,7 +131,7 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
             </div>
             {message && <div className="form-guidance" role="status">{message}</div>}
             <p className="keyboard-hint">Tip: press Ctrl + Enter to make your plan.</p>
-            <div className="quick-starts"><strong>{copy.quickTitle}</strong><div>{copy.quickRequests.map((item) => <button type="button" key={item} onClick={() => { setRequest(item); setMessage(""); }}>{item} <ArrowRight /></button>)}</div></div>
+            <div className="quick-starts"><strong>{copy.quickTitle}</strong><div>{copy.quickRequests.map((item) => <button type="button" key={item} onClick={() => onStartPlan(item)}>{item} <ArrowRight /></button>)}</div></div>
           </section>
 
         <section className="hub-profile-note">

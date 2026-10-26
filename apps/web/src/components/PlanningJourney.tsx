@@ -19,6 +19,21 @@ interface PlanningJourneyProps {
 
 const phases: PlanningPhase[] = ["understanding", "discovering", "transport", "fallbacks", "ready"];
 
+function transportLabel(mode: string) {
+  const normalized = mode.toLowerCase();
+  if (normalized === "drive") return "by car";
+  if (normalized === "walk") return "walking";
+  if (normalized === "transit" || normalized === "public transit") return "by public transit";
+  if (normalized === "family or friend") return "with family or a friend";
+  if (normalized === "drive myself") return "driving";
+  if (normalized === "rideshare") return "by rideshare";
+  return `by ${mode}`;
+}
+
+function durationLabel(minutes: number) {
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
 export function PlanningJourney({ sessionId, request, user, profile, contacts, onClose }: PlanningJourneyProps) {
   const [phase, setPhase] = useState<PlanningPhase>("understanding");
   const [plan, setPlan] = useState<ConductorResponse | null>(null);
@@ -164,7 +179,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         {error && <section className="journey-error"><h2>We couldn’t finish this plan</h2><p>{error}</p><button className="primary-button" onClick={onClose}>Try another request</button></section>}
 
         {plan && <section className="decision-area">
-          <div className="decision-heading"><div><span>LIVE DECISION TREE</span><h2>{feature.resultLabel}</h2></div><small>Backups stay ready until the plan is complete.</small></div>
+          <div className="decision-heading"><div><span>YOUR PLAN AND BACKUPS</span><h2>{feature.resultLabel}</h2></div><small>Backups stay ready until the plan is complete.</small></div>
           <div className="next-step-banner">
             <span>YOUR NEXT STEP</span>
             <strong>{branch === "coordination" ? `Ask ${primaryContact?.name || "your trusted contact"} if they can help.` : branch === "fallback" ? "Use the independent ride option below." : "Review the route and go when you are ready."}</strong>
@@ -176,7 +191,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
                 <h3>{primaryActivity?.title ?? plan.rankedOptions[0].place.name}</h3>
                 {primaryActivity && <p><CalendarDays /> {primaryActivity.startLabel}</p>}
                 <p><MapPin /> {primaryActivity ? `${primaryActivity.venue.name} · ${primaryActivity.venue.address}` : plan.rankedOptions[0].place.address}</p>
-                <p><Navigation /> {plan.rankedOptions[0].transport.durationMinutes} minutes · {plan.rankedOptions[0].transport.distanceMiles} miles</p>
+                <p><Navigation /> {durationLabel(plan.rankedOptions[0].transport.durationMinutes)} {transportLabel(plan.rankedOptions[0].transport.mode)} · {plan.rankedOptions[0].transport.distanceMiles} miles</p>
                 {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
                 {primaryActivity && <span className="source-freshness"><Check /> {primaryActivity.source === "ticketmaster" ? "Live Ticketmaster listing" : "Verified local senior program"} · checked {new Date(primaryActivity.lastVerifiedAt).toLocaleDateString()}</span>}
                 <small>{plan.rankedOptions[0].reason}</small>
@@ -214,7 +229,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
           </div>
           {plan.rankedOptions.length > 1 && <section className="alternate-results"><h3>Other {plan.intent.category === "activity" ? "activities" : "nearby options"}</h3><div>{plan.rankedOptions.slice(1).map((option) => {
             const activity = plan.activities.find((candidate) => candidate.venue.id === option.place.id);
-            return <article key={option.place.id}><strong>#{option.rank} {activity?.title ?? option.place.name}</strong>{activity && <span>{activity.startLabel} · {activity.venue.name}</span>}<span>{option.transport.durationMinutes} min · {option.transport.distanceMiles} miles</span></article>;
+            return <article key={option.place.id}><strong>#{option.rank} {activity?.title ?? option.place.name}</strong>{activity && <span>{activity.startLabel} · {activity.venue.name}</span>}<span>{option.transport.durationMinutes} min {transportLabel(option.transport.mode)} · {option.transport.distanceMiles} miles</span></article>;
           })}</div></section>}
           <div className="journey-actions"><button className="secondary-button" onClick={onClose}>Start a new request</button></div>
         </section>}

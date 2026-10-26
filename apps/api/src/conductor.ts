@@ -12,13 +12,22 @@ function activityRelevance(text: string, interests: string[]) {
   }, 0);
 }
 
+function alternateGoal(category: ConductorResponse["intent"]["category"]) {
+  if (category === "activity") return "Try another nearby activity that matches your interests.";
+  if (category === "shopping") return "Try the next closest shopping option.";
+  if (category === "appointment") return "Try a different appointment time or route.";
+  if (category === "social") return "Try another comfortable nearby place to meet.";
+  if (category === "errand") return "Try the next closest place for this errand.";
+  return "Try another nearby option that matches your request.";
+}
+
 export async function conduct(request: string, profile: PlannerProfile, config: ApiConfig): Promise<ConductorResponse> {
   const parsed = await parseIntent(request, profile, config);
   const [places, activities, fallbackOptions, contactDraft] = await Promise.all([
     findPlaces(parsed.value, profile, config),
     findActivities(parsed.value, profile, config),
     Promise.resolve([
-      `Try the next closest ${parsed.value.placeQuery.toLowerCase()} option.`,
+      alternateGoal(parsed.value.category),
       "Choose a different travel mode or time.",
       profile.trustedContactAvailable ? "Ask your trusted contact for help." : "Try again with a broader nearby search.",
     ]),
@@ -50,9 +59,9 @@ export async function conduct(request: string, profile: PlannerProfile, config: 
       place,
       transport,
       reason: relevance > 0
-        ? `Matches saved interests and is ${transport.durationMinutes} minutes away.`
+        ? `Matches saved interests and is ${transport.durationMinutes} ${transport.durationMinutes === 1 ? "minute" : "minutes"} away.`
         : transport.feasible
-          ? `${transport.durationMinutes} minutes away and within the usual travel limit.`
+          ? `${transport.durationMinutes} ${transport.durationMinutes === 1 ? "minute" : "minutes"} away and within the usual travel limit.`
         : `A backup option if extra travel time is acceptable.`,
     }));
 

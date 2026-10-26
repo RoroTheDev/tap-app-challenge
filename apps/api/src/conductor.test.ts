@@ -27,6 +27,7 @@ describe("conductor", () => {
     expect(result.intent.tags).toEqual(["places", "transport", "contact", "fallback"]);
     expect(result.rankedOptions).toHaveLength(3);
     expect(result.rankedOptions[0].rank).toBe(1);
+    expect(result.fallbackOptions[0]).toBe("Try the next closest shopping option.");
     expect(result.contactMessage.delivery).toBe("simulated");
     expect(result.integrations).toEqual({ intent: "mock", places: "mock", routes: "mock", messaging: "mock", events: "unavailable" });
   });
