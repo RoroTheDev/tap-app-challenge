@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { Accessibility, ArrowLeft, CalendarDays, Check, Circle, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { Accessibility, ArrowLeft, CalendarDays, Check, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
 import type { ConductorResponse, CoordinationStatus, SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
 import { createPlanningSession, readCoordinationStatus, readPlanningSession, requestConductorPlan, sendContactRequest, updatePlanningSession } from "../lib/conductor";
 import { activePlanBranch, getFeatureDefinition, getPhaseLabel, type PlanningPhase } from "../lib/workflow";
 import { buildUberDeepLink } from "../lib/uber";
-import { AccessibilityControls } from "./AccessibilityControls";
 import { Logo } from "./Logo";
 
 interface PlanningJourneyProps {
@@ -17,7 +16,21 @@ interface PlanningJourneyProps {
   onClose: () => void;
 }
 
-const phases: PlanningPhase[] = ["understanding", "discovering", "transport", "fallbacks", "ready"];
+const loadingStatus: Record<PlanningPhase, string> = {
+  understanding: "Understanding your request",
+  discovering: "Finding the best options",
+  transport: "Checking the trip",
+  fallbacks: "Preparing a backup",
+  ready: "Your plan is ready",
+};
+
+const loadingProgress: Record<PlanningPhase, string> = {
+  understanding: "18%",
+  discovering: "42%",
+  transport: "66%",
+  fallbacks: "84%",
+  ready: "100%",
+};
 
 function transportLabel(mode: string) {
   const normalized = mode.toLowerCase();
@@ -49,6 +62,10 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
   const feature = getFeatureDefinition(plan?.intent.category);
   const primaryActivity = plan?.activities.find((activity) => activity.venue.id === plan.rankedOptions[0]?.place.id);
   const uberLink = buildUberDeepLink(import.meta.env.VITE_UBER_CLIENT_ID as string | undefined, plan?.rankedOptions[0]?.place);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [sessionId, Boolean(plan)]);
 
   useEffect(() => {
     let stopped = false;
@@ -129,9 +146,6 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
     return () => { stopped = true; window.clearInterval(interval); window.clearTimeout(timeout); };
   }, [coordination?.id, coordination?.status, coordination?.expiresAt, sessionId, user]);
 
-  const currentPhaseIndex = phases.indexOf(phase);
-  const statusText = useMemo(() => getPhaseLabel(phase, plan?.intent.category), [phase, plan?.intent.category]);
-
   async function askTrustedContact() {
     if (!plan || !primaryContact || !plan.contactMessage.draft) return;
     setContactBusy(true);
@@ -160,22 +174,22 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
 
   return (
     <div className="journey-shell">
-      <header className="journey-header"><Logo /><div className="journey-header-actions"><AccessibilityControls language={profile.preferredLanguage} readTargetId="tap-journey-main" /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></div></header>
-      <main className={`journey-main ${plan ? "plan-ready-view" : ""}`} id="tap-journey-main" aria-live="polite">
-        <div className="journey-intro">
+      <header className="journey-header"><Logo /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></header>
+      <main className={`journey-main ${plan ? "plan-ready-view" : "journey-loading-view"}`} id="tap-journey-main">
+        {plan && <div className="journey-intro">
           <div className="eyebrow"><Sparkles /> TAP CONDUCTOR</div>
-          <h1>{plan ? feature.label : "Building your plan"}</h1>
+          <h1>{feature.label}</h1>
           <p>“{request}”</p>
-        </div>
+        </div>}
 
-        {!plan && <ol className="journey-progress" aria-label="Planning progress">
-          {phases.map((item, index) => <li key={item} className={index < currentPhaseIndex ? "complete" : index === currentPhaseIndex ? "active" : "pending"}>
-            <span>{index < currentPhaseIndex || phase === "ready" ? <Check /> : index === currentPhaseIndex ? <span className="pulse-dot" /> : <Circle />}</span>
-            <strong>{getPhaseLabel(item)}</strong>
-          </li>)}
-        </ol>}
-
-        {!plan && !error && <section className="journey-loading"><div className="conductor-orbit"><Sparkles /><i /><i /><i /></div><h2>{statusText}…</h2><p>TAP is working on the primary plan and its backups at the same time.</p></section>}
+        {!plan && !error && <section className="journey-loading simple-loading" role="status" aria-live="polite">
+          <div className="conductor-orbit"><Sparkles /><i /><i /><i /></div>
+          <div className="eyebrow">MAKING YOUR PLAN</div>
+          <h1>{loadingStatus[phase]}</h1>
+          <p className="loading-request">“{request}”</p>
+          <div className="simple-progress" aria-label={getPhaseLabel(phase)}><span style={{ width: loadingProgress[phase] }} /></div>
+          <small>Usually ready in a few seconds</small>
+        </section>}
         {error && <section className="journey-error"><h2>We couldn’t finish this plan</h2><p>{error}</p><button className="primary-button" onClick={onClose}>Try another request</button></section>}
 
         {plan && <section className="decision-area focused-plan">
