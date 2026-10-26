@@ -193,7 +193,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         {error && <section className="journey-error"><h2>We couldn’t finish this plan</h2><p>{error}</p><button className="primary-button" onClick={onClose}>Try another request</button></section>}
 
         {plan && <section className="decision-area focused-plan">
-          <div className="decision-heading"><div><span>PLAN READY</span><h2>{feature.resultLabel}</h2></div><small>Plan B and Plan C are ready if needed.</small></div>
+          <div className="decision-heading"><div><span>PLAN READY</span><h2>{feature.resultLabel}</h2></div><small>A backup is ready if plans change.</small></div>
 
           <article className="plan-spotlight">
             <div className="node-top"><span className="node-letter">A</span><span className="node-state">Best match</span></div>
@@ -212,8 +212,8 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
           <article className="single-action-card">
             <span className="action-label">YOUR NEXT STEP</span>
             {branch === "coordination" && !contactReview && !coordination && <>
-              <h3>Ask {primaryContact?.name || "your trusted contact"} for help?</h3>
-              <p>TAP will show you the message before anything is sent.</p>
+              <h3>Ask {primaryContact?.name || "your trusted contact"} for a ride?</h3>
+              <p>You will see the message before it is sent.</p>
               <button className="primary-button wide" onClick={() => setContactReview(true)}>Review message <MessageCircle /></button>
             </>}
             {branch === "coordination" && contactReview && !coordination && <>
@@ -228,7 +228,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
             {contactError && <div className="form-error" role="alert">{contactError}</div>}
           </article>
 
-          <div className="backup-readiness" aria-label="Backup readiness"><span><Check /> Plan A selected</span><span><Check /> Plan B ride ready</span><span><Check /> Plan C alternatives ready</span></div>
+          <div className="backup-readiness" aria-label="Backup readiness"><span><Check /> Best option ready</span><span><Check /> Ride backup ready</span><span><Check /> Other choices ready</span></div>
         </section>}
       </main>
     </div>

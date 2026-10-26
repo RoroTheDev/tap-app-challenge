@@ -51,7 +51,7 @@ const english: HubCopy = {
   stop: "Stop listening",
   makePlan: "Make my plan",
   quickTitle: "Or start with one of these",
-  quickRequests: ["Find something fun to do nearby", "I want to go shopping", "Help me plan an appointment", "I want to visit a friend"],
+  quickRequests: ["Find something fun to do nearby", "I want to go shopping", "Help me plan a doctor's appointment", "Meet a friend for coffee"],
   planTitle: "Your plan",
   planIntro: "TAP organized your request into a few clear steps.",
   places: "Find the best options",

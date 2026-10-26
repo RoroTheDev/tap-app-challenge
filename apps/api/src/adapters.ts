@@ -93,6 +93,18 @@ const mockPlaces: PlaceCandidate[] = [
   { id: "mock-3", name: "Warm Springs Plaza", address: "Fremont, CA", mapsUrl: "https://maps.google.com/?q=Warm+Springs+Plaza+Fremont", latitude: 37.4936, longitude: -121.9287, source: "mock" },
 ];
 
+export function placeSearchText(intent: ParsedIntent) {
+  const goal = intent.goal.trim().toLowerCase();
+  const genericAppointment = intent.category === "appointment"
+    && (/^(help me )?(plan |schedule )?(a |an )?(doctor'?s? )?appointment\b/.test(goal) || goal === "i need an appointment");
+  const genericFriendVisit = intent.category === "social"
+    && /\b(visit|meet|see)\b.*\b(friend|family|relative)\b/.test(goal);
+
+  if (genericAppointment) return "accessible primary care clinics";
+  if (genericFriendVisit) return "quiet accessible cafes";
+  return intent.placeQuery;
+}
+
 export async function findPlaces(intent: ParsedIntent, profile: PlannerProfile, config: ApiConfig) {
   if (!config.googleMapsApiKey) return { value: mockPlaces, source: "mock" as const };
   try {
@@ -103,7 +115,7 @@ export async function findPlaces(intent: ParsedIntent, profile: PlannerProfile, 
         "X-Goog-Api-Key": config.googleMapsApiKey,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.googleMapsUri,places.location",
       },
-      body: JSON.stringify({ textQuery: `${intent.placeQuery} near ${profile.area}`, maxResultCount: 5 }),
+      body: JSON.stringify({ textQuery: `${placeSearchText(intent)} near ${profile.area}`, maxResultCount: 5 }),
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) throw new Error(`Places returned ${response.status}.`);
