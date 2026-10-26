@@ -94,6 +94,100 @@ export interface PlannerProfile {
   trustedContactAvailable: boolean;
 }
 
+export type ConductorTag = "places" | "transport" | "contact" | "fallback";
+
+export interface ConductorRequest {
+  request: string;
+  /** Used only by local preview mode. Authenticated servers load this from Firestore. */
+  previewProfile?: PlannerProfile;
+}
+
+export interface ParsedIntent {
+  goal: string;
+  category: "shopping" | "appointment" | "social" | "errand" | "activity" | "other";
+  placeQuery: string;
+  timing: string;
+  assistanceNeeded: boolean;
+  tags: ConductorTag[];
+}
+
+export interface PlaceCandidate {
+  id: string;
+  name: string;
+  address: string;
+  mapsUrl: string;
+  latitude: number | null;
+  longitude: number | null;
+  source: "google" | "mock";
+}
+
+export interface TransportOption {
+  mode: string;
+  durationMinutes: number;
+  distanceMiles: number;
+  feasible: boolean;
+  source: "google" | "mock";
+}
+
+export interface RankedPlanOption {
+  rank: number;
+  place: PlaceCandidate;
+  transport: TransportOption;
+  reason: string;
+}
+
+export interface ConductorStep {
+  tag: ConductorTag;
+  title: string;
+  detail: string;
+  status: "ready" | "simulated" | "needs_confirmation";
+}
+
+export interface ConductorResponse {
+  request: string;
+  intent: ParsedIntent;
+  steps: ConductorStep[];
+  rankedOptions: RankedPlanOption[];
+  fallbackOptions: string[];
+  contactMessage: {
+    available: boolean;
+    recipientLabel: string;
+    draft: string;
+    delivery: "ready" | "simulated" | "unavailable";
+  };
+  integrations: {
+    intent: "openai" | "mock";
+    places: "google" | "mock";
+    routes: "google" | "mock";
+    messaging: "twilio" | "mock" | "unavailable";
+  };
+}
+
+export interface SendContactMessageRequest {
+  confirmed: boolean;
+  message: string;
+  contactId?: string;
+  /** Preview-only destination. Production always loads the saved contact. */
+  previewPhone?: string;
+}
+
+export interface SendContactMessageResponse {
+  sent: boolean;
+  simulated: boolean;
+  messageId: string;
+  confirmationId: string;
+  status: CoordinationStatus;
+  expiresAt: string;
+}
+
+export type CoordinationStatus = "waiting" | "accepted" | "declined" | "timed_out" | "failed";
+
+export interface CoordinationStatusResponse {
+  id: string;
+  status: CoordinationStatus;
+  expiresAt: string;
+}
+
 type ProfileIdentity = Pick<SeniorProfile, "uid" | "email" | "displayName">;
 
 function recordValue(value: unknown): Record<string, unknown> {

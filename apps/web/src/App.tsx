@@ -6,6 +6,7 @@ import { Hub } from "./components/Hub";
 import { Logo } from "./components/Logo";
 import { Onboarding } from "./components/Onboarding";
 import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
+import { deleteConductorData } from "./lib/conductor";
 
 type AuthMode = "login" | "signup" | null;
 const PROFILE_LOAD_TIMEOUT_MS = 15_000;
@@ -134,6 +135,7 @@ export default function App() {
 
   async function handleDelete() {
     if (!user) return;
+    await deleteConductorData(user);
     await deleteProfile(user.uid);
     sessionStorage.removeItem(`tap.onboarding-draft.${user.uid}`);
     setProfile(null);
