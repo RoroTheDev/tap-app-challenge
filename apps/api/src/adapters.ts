@@ -3,6 +3,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import twilio from "twilio";
 import { z } from "zod";
 import type {
+  ActivityCandidate,
   ConductorTag,
   ParsedIntent,
   PlaceCandidate,
@@ -127,6 +128,129 @@ export async function findPlaces(intent: ParsedIntent, profile: PlannerProfile, 
   }
 }
 
+function localAreaParts(area: string) {
+  const [city = area, state = ""] = area.split(",").map((part) => part.trim());
+  return { city, state: /^[A-Za-z]{2}$/.test(state) ? state.toUpperCase() : "" };
+}
+
+function curatedSeniorActivities(profile: PlannerProfile): ActivityCandidate[] {
+  if (!/fremont/i.test(profile.area)) return [];
+  const sourceUrl = "https://www.fremont.gov/government/departments/human-services/age-well-centers";
+  return [
+    {
+      id: "fremont-age-well-lake-elizabeth",
+      title: "Age Well Center classes and activities",
+      description: "Classes, fitness, social programs, workshops, and services for adults 55+ at Lake Elizabeth.",
+      startLabel: "Weekdays — check the current activity calendar",
+      costLabel: "Free and paid programs",
+      accessibilityLabel: "Contact the center to confirm support for a specific class",
+      registrationUrl: sourceUrl,
+      source: "curated",
+      venue: {
+        id: "fremont-age-well-lake-elizabeth",
+        name: "Age Well Center at Lake Elizabeth",
+        address: "40086 Paseo Padre Parkway, Fremont, CA 94538",
+        mapsUrl: "https://maps.google.com/?q=Age+Well+Center+at+Lake+Elizabeth",
+        latitude: null,
+        longitude: null,
+        source: "mock",
+      },
+    },
+    {
+      id: "fremont-age-well-south",
+      title: "South Fremont senior activities",
+      description: "Community, wellness, learning, and social activities designed for adults 55+.",
+      startLabel: "Weekdays — check the current activity calendar",
+      costLabel: "Free and paid programs",
+      accessibilityLabel: "Contact the center to confirm support for a specific class",
+      registrationUrl: sourceUrl,
+      source: "curated",
+      venue: {
+        id: "fremont-age-well-south",
+        name: "Age Well Center at South Fremont",
+        address: "47111 Mission Falls Court, Fremont, CA 94539",
+        mapsUrl: "https://maps.google.com/?q=Age+Well+Center+at+South+Fremont",
+        latitude: null,
+        longitude: null,
+        source: "mock",
+      },
+    },
+  ];
+}
+
+function eventStartLabel(start: { dateTime?: string; localDate?: string; localTime?: string } | undefined) {
+  if (start?.dateTime) {
+    const date = new Date(start.dateTime);
+    if (!Number.isNaN(date.getTime())) return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  }
+  return [start?.localDate, start?.localTime].filter(Boolean).join(" at ") || "Date and time available from organizer";
+}
+
+export async function findActivities(intent: ParsedIntent, profile: PlannerProfile, config: ApiConfig) {
+  const curated = curatedSeniorActivities(profile);
+  if (intent.category !== "activity") return { value: [] as ActivityCandidate[], source: "unavailable" as const };
+  if (!config.ticketmasterApiKey) return { value: curated, source: curated.length ? "curated" as const : "unavailable" as const };
+  try {
+    const { city, state } = localAreaParts(profile.area);
+    const query = new URLSearchParams({
+      apikey: config.ticketmasterApiKey,
+      countryCode: "US",
+      startDateTime: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+      endDateTime: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      size: "8",
+      sort: "date,asc",
+    });
+    if (/fremont/i.test(profile.area)) {
+      query.set("latlong", "37.5485,-121.9886");
+      query.set("radius", "35");
+      query.set("unit", "miles");
+    } else {
+      query.set("city", city);
+      if (state) query.set("stateCode", state);
+    }
+    const response = await fetch(`https://app.ticketmaster.com/discovery/v2/events.json?${query}`, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) throw new Error(`Ticketmaster returned ${response.status}.`);
+    const payload = await response.json() as { _embedded?: { events?: Array<Record<string, unknown>> } };
+    const events = (payload._embedded?.events ?? []).flatMap((event): ActivityCandidate[] => {
+      const embedded = event._embedded as { venues?: Array<Record<string, unknown>> } | undefined;
+      const venue = embedded?.venues?.[0];
+      if (!venue) return [];
+      const address = venue.address as { line1?: string } | undefined;
+      const eventCity = venue.city as { name?: string } | undefined;
+      const eventState = venue.state as { stateCode?: string } | undefined;
+      const location = venue.location as { latitude?: string; longitude?: string } | undefined;
+      const dates = event.dates as { start?: { dateTime?: string; localDate?: string; localTime?: string } } | undefined;
+      const price = (event.priceRanges as Array<{ min?: number; max?: number; currency?: string }> | undefined)?.[0];
+      const accessibility = event.accessibility as { info?: string } | undefined;
+      const venueName = String(venue.name ?? "Event venue");
+      const venueAddress = [address?.line1, eventCity?.name, eventState?.stateCode].filter(Boolean).join(", ");
+      return [{
+        id: String(event.id ?? crypto.randomUUID()),
+        title: String(event.name ?? "Nearby event"),
+        description: String(event.info ?? event.pleaseNote ?? "See the organizer page for event details."),
+        startLabel: eventStartLabel(dates?.start),
+        costLabel: price?.min !== undefined ? `${price.currency ?? "$"} ${price.min}${price.max && price.max !== price.min ? `–${price.max}` : ""}` : "Check organizer for price",
+        accessibilityLabel: accessibility?.info || "Accessibility not confirmed",
+        registrationUrl: String(event.url ?? ""),
+        source: "ticketmaster",
+        venue: {
+          id: `ticketmaster-${String(event.id ?? crypto.randomUUID())}`,
+          name: venueName,
+          address: venueAddress || profile.area,
+          mapsUrl: `https://maps.google.com/?q=${encodeURIComponent(`${venueName} ${venueAddress}`)}`,
+          latitude: location?.latitude ? Number(location.latitude) : null,
+          longitude: location?.longitude ? Number(location.longitude) : null,
+          source: "mock",
+        },
+      }];
+    });
+    return { value: [...curated, ...events].slice(0, 10), source: events.length ? "ticketmaster" as const : curated.length ? "curated" as const : "unavailable" as const };
+  } catch (error) {
+    console.warn("Ticketmaster failed; using verified local activities.", error instanceof Error ? error.message : error);
+    return { value: curated, source: curated.length ? "curated" as const : "unavailable" as const };
+  }
+}
+
 function travelMode(profile: PlannerProfile) {
   if (profile.transportModes.includes("Walk")) return "WALK";
   if (profile.transportModes.includes("Public transit")) return "TRANSIT";
@@ -158,7 +282,7 @@ export async function computeTransport(place: PlaceCandidate, profile: PlannerPr
       },
       body: JSON.stringify({
         origin: { address: profile.area },
-        destination: { placeId: place.id },
+        destination: place.source === "google" ? { placeId: place.id } : { address: place.address },
         travelMode: travelMode(profile),
         computeAlternativeRoutes: false,
         languageCode: "en-US",

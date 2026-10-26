@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Circle, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Accessibility, ArrowLeft, CalendarDays, Check, Circle, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
 import type { ConductorResponse, CoordinationStatus, SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
 import { readCoordinationStatus, requestConductorPlan, sendContactRequest } from "../lib/conductor";
@@ -29,6 +29,7 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
   const needsContact = Boolean(plan?.intent.tags.includes("contact") && plan.contactMessage.available && primaryContact);
   const branch = activePlanBranch(needsContact, coordination?.status);
   const feature = getFeatureDefinition(plan?.intent.category);
+  const primaryActivity = plan?.activities.find((activity) => activity.venue.id === plan.rankedOptions[0]?.place.id);
 
   useEffect(() => {
     let stopped = false;
@@ -111,7 +112,14 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
           <div className="decision-tree">
             <article className={`decision-node primary ${branch === "primary" ? "selected" : ""}`}>
               <div className="node-top"><span className="node-letter">A</span><span className="node-state">{branch === "primary" ? "Selected plan" : "Primary option"}</span></div>
-              {plan.rankedOptions[0] ? <><h3>{plan.rankedOptions[0].place.name}</h3><p><MapPin /> {plan.rankedOptions[0].place.address}</p><p><Navigation /> {plan.rankedOptions[0].transport.durationMinutes} minutes · {plan.rankedOptions[0].transport.distanceMiles} miles</p><small>{plan.rankedOptions[0].reason}</small></> : <p>TAP found no matching place yet.</p>}
+              {plan.rankedOptions[0] ? <>
+                <h3>{primaryActivity?.title ?? plan.rankedOptions[0].place.name}</h3>
+                {primaryActivity && <p><CalendarDays /> {primaryActivity.startLabel}</p>}
+                <p><MapPin /> {primaryActivity ? `${primaryActivity.venue.name} · ${primaryActivity.venue.address}` : plan.rankedOptions[0].place.address}</p>
+                <p><Navigation /> {plan.rankedOptions[0].transport.durationMinutes} minutes · {plan.rankedOptions[0].transport.distanceMiles} miles</p>
+                {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
+                <small>{plan.rankedOptions[0].reason}</small>
+              </> : <p>TAP found no matching place yet.</p>}
               {!needsContact && <div className="node-confirmed"><Check /> Ready to go</div>}
               {needsContact && branch === "primary" && <div className="node-confirmed"><Check /> Help accepted — Plan A is confirmed</div>}
             </article>
@@ -142,7 +150,10 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
               <ul>{plan.fallbackOptions.map((option) => <li key={option}>{option}</li>)}</ul>
             </article>
           </div>
-          {plan.rankedOptions.length > 1 && <section className="alternate-results"><h3>Other {plan.intent.category === "activity" ? "activities" : "nearby options"}</h3><div>{plan.rankedOptions.slice(1).map((option) => <article key={option.place.id}><strong>#{option.rank} {option.place.name}</strong><span>{option.transport.durationMinutes} min · {option.transport.distanceMiles} miles</span></article>)}</div></section>}
+          {plan.rankedOptions.length > 1 && <section className="alternate-results"><h3>Other {plan.intent.category === "activity" ? "activities" : "nearby options"}</h3><div>{plan.rankedOptions.slice(1).map((option) => {
+            const activity = plan.activities.find((candidate) => candidate.venue.id === option.place.id);
+            return <article key={option.place.id}><strong>#{option.rank} {activity?.title ?? option.place.name}</strong>{activity && <span>{activity.startLabel} · {activity.venue.name}</span>}<span>{option.transport.durationMinutes} min · {option.transport.distanceMiles} miles</span></article>;
+          })}</div></section>}
           <div className="journey-actions"><button className="secondary-button" onClick={onClose}>Start a new request</button></div>
         </section>}
       </main>

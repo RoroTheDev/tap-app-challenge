@@ -28,6 +28,14 @@ describe("conductor", () => {
     expect(result.rankedOptions).toHaveLength(3);
     expect(result.rankedOptions[0].rank).toBe(1);
     expect(result.contactMessage.delivery).toBe("simulated");
-    expect(result.integrations).toEqual({ intent: "mock", places: "mock", routes: "mock", messaging: "mock" });
+    expect(result.integrations).toEqual({ intent: "mock", places: "mock", routes: "mock", messaging: "mock", events: "unavailable" });
+  });
+
+  it("uses curated senior activities when an activity provider key is absent", async () => {
+    const result = await conduct("Find me a senior activity", { ...profile, interests: ["Fitness"] }, readConfig({ ALLOW_MOCKS: "true" }));
+    expect(result.intent.category).toBe("activity");
+    expect(result.activities.length).toBeGreaterThan(0);
+    expect(result.activities[0].source).toBe("curated");
+    expect(result.integrations.events).toBe("curated");
   });
 });

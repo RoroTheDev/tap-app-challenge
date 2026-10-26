@@ -21,6 +21,9 @@ Live app: <https://congressapp-849ff.web.app>
   and an executable Plan A → contact checkpoint → Plan B → Plan C decision tree
 - Data-driven feature definitions so shopping, activities, appointments, social
   plans, errands, and future discovery tools share one orchestration engine
+- Live Activity Finder results from Ticketmaster combined with curated Fremont
+  Age Well programs, official registration links, cost/date labels,
+  accessibility disclosure, route feasibility, and senior-profile ranking
 - Explicit trusted-contact confirmation, WhatsApp delivery, signed inbound
   webhook validation, bounded YES/NO waiting, and Uber handoff after a decline
   or timeout
@@ -58,6 +61,10 @@ npm run dev:web
 Create `apps/web/.env.local` with only the `VITE_FIREBASE_*` values from
 `.env.example`. The checked-in example also documents the separate server
 variables; place those in `apps/api/.env.local`.
+
+Activity Finder uses `TICKETMASTER_API_KEY` only on the server. The public
+Ticketmaster Discovery key is stored as a Firebase function secret in production
+and must never be added to frontend variables or committed files.
 
 Open `http://localhost:5173`.
 

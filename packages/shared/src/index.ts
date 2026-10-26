@@ -136,6 +136,18 @@ export interface RankedPlanOption {
   reason: string;
 }
 
+export interface ActivityCandidate {
+  id: string;
+  title: string;
+  description: string;
+  startLabel: string;
+  costLabel: string;
+  accessibilityLabel: string;
+  registrationUrl: string;
+  source: "ticketmaster" | "curated";
+  venue: PlaceCandidate;
+}
+
 export interface ConductorStep {
   tag: ConductorTag;
   title: string;
@@ -148,6 +160,7 @@ export interface ConductorResponse {
   intent: ParsedIntent;
   steps: ConductorStep[];
   rankedOptions: RankedPlanOption[];
+  activities: ActivityCandidate[];
   fallbackOptions: string[];
   contactMessage: {
     available: boolean;
@@ -160,6 +173,7 @@ export interface ConductorResponse {
     places: "google" | "mock";
     routes: "google" | "mock";
     messaging: "twilio" | "mock" | "unavailable";
+    events: "ticketmaster" | "curated" | "unavailable";
   };
 }
 
