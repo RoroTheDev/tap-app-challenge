@@ -161,77 +161,60 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
   return (
     <div className="journey-shell">
       <header className="journey-header"><Logo /><div className="journey-header-actions"><AccessibilityControls language={profile.preferredLanguage} readTargetId="tap-journey-main" /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></div></header>
-      <main className="journey-main" id="tap-journey-main" aria-live="polite">
+      <main className={`journey-main ${plan ? "plan-ready-view" : ""}`} id="tap-journey-main" aria-live="polite">
         <div className="journey-intro">
           <div className="eyebrow"><Sparkles /> TAP CONDUCTOR</div>
           <h1>{plan ? feature.label : "Building your plan"}</h1>
           <p>“{request}”</p>
         </div>
 
-        <ol className="journey-progress" aria-label="Planning progress">
+        {!plan && <ol className="journey-progress" aria-label="Planning progress">
           {phases.map((item, index) => <li key={item} className={index < currentPhaseIndex ? "complete" : index === currentPhaseIndex ? "active" : "pending"}>
             <span>{index < currentPhaseIndex || phase === "ready" ? <Check /> : index === currentPhaseIndex ? <span className="pulse-dot" /> : <Circle />}</span>
-            <strong>{getPhaseLabel(item, plan?.intent.category)}</strong>
+            <strong>{getPhaseLabel(item)}</strong>
           </li>)}
-        </ol>
+        </ol>}
 
         {!plan && !error && <section className="journey-loading"><div className="conductor-orbit"><Sparkles /><i /><i /><i /></div><h2>{statusText}…</h2><p>TAP is working on the primary plan and its backups at the same time.</p></section>}
         {error && <section className="journey-error"><h2>We couldn’t finish this plan</h2><p>{error}</p><button className="primary-button" onClick={onClose}>Try another request</button></section>}
 
-        {plan && <section className="decision-area">
-          <div className="decision-heading"><div><span>YOUR PLAN AND BACKUPS</span><h2>{feature.resultLabel}</h2></div><small>Backups stay ready until the plan is complete.</small></div>
-          <div className="next-step-banner">
-            <span>YOUR NEXT STEP</span>
-            <strong>{branch === "coordination" ? `Ask ${primaryContact?.name || "your trusted contact"} if they can help.` : branch === "fallback" ? "Use the independent ride option below." : "Review the route and go when you are ready."}</strong>
-          </div>
-          <div className="decision-tree">
-            <article className={`decision-node primary ${branch === "primary" ? "selected" : ""}`}>
-              <div className="node-top"><span className="node-letter">A</span><span className="node-state">{branch === "primary" ? "Selected plan" : "Primary option"}</span></div>
-              {plan.rankedOptions[0] ? <>
-                <h3>{primaryActivity?.title ?? plan.rankedOptions[0].place.name}</h3>
-                {primaryActivity && <p><CalendarDays /> {primaryActivity.startLabel}</p>}
-                <p><MapPin /> {primaryActivity ? `${primaryActivity.venue.name} · ${primaryActivity.venue.address}` : plan.rankedOptions[0].place.address}</p>
-                <p><Navigation /> {durationLabel(plan.rankedOptions[0].transport.durationMinutes)} {transportLabel(plan.rankedOptions[0].transport.mode)} · {plan.rankedOptions[0].transport.distanceMiles} miles</p>
-                {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
-                {primaryActivity && <span className="source-freshness"><Check /> {primaryActivity.source === "ticketmaster" ? "Live Ticketmaster listing" : "Verified local senior program"} · checked {new Date(primaryActivity.lastVerifiedAt).toLocaleDateString()}</span>}
-                <small>{plan.rankedOptions[0].reason}</small>
-                <div className="primary-plan-actions"><strong>{branch === "coordination" ? "Preview the route" : "Route ready"}</strong><a className="primary-button link-button" href={plan.rankedOptions[0].place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></div>
-              </> : <p>TAP found no matching place yet.</p>}
-              {!needsContact && <div className="node-confirmed"><Check /> Ready to go</div>}
-              {needsContact && branch === "primary" && <div className="node-confirmed"><Check /> Help accepted — Plan A is confirmed</div>}
-            </article>
+        {plan && <section className="decision-area focused-plan">
+          <div className="decision-heading"><div><span>PLAN READY</span><h2>{feature.resultLabel}</h2></div><small>Plan B and Plan C are ready if needed.</small></div>
 
-            {needsContact && <article className={`decision-node contact ${branch === "coordination" ? "selected" : ""}`}>
-              <div className="tree-connector">if help is needed</div>
-              <div className="node-top"><MessageCircle /><span className="node-state">Trusted contact checkpoint</span></div>
-              <h3>Ask {primaryContact?.name || "your trusted contact"}?</h3>
-              {!contactReview && !coordination && <button className="primary-button" onClick={() => setContactReview(true)}>Review and continue</button>}
-              {contactReview && !coordination && <><p className="message-preview">{plan.contactMessage.draft}</p><div className="contact-buttons"><button className="secondary-button" onClick={useBackupInstead}>Use backup instead</button><button className="primary-button" disabled={contactBusy} onClick={() => void askTrustedContact()}>{contactBusy ? "Sending…" : "Confirm and send"} <Send /></button></div></>}
-              {coordination?.status === "waiting" && <div className="coordination-status waiting"><Clock3 /> Waiting up to two minutes for YES or NO…</div>}
-              {coordination?.status === "accepted" && <div className="coordination-status accepted"><Check /> Accepted — continuing with Plan A.</div>}
-              {coordination && ["declined", "timed_out", "failed"].includes(coordination.status) && <div className="coordination-status fallback"><RotateCcw /> {coordination.id === "manual-fallback" ? "You chose the backup." : coordination.status === "declined" ? "They aren’t available." : coordination.status === "timed_out" ? "No reply arrived in time." : "The message could not be delivered."} TAP activated Plan B.</div>}
-              {contactError && <div className="form-error" role="alert">{contactError}</div>}
-            </article>}
+          <article className="plan-spotlight">
+            <div className="node-top"><span className="node-letter">A</span><span className="node-state">Best match</span></div>
+            {plan.rankedOptions[0] ? <>
+              <h3>{primaryActivity?.title ?? plan.rankedOptions[0].place.name}</h3>
+              <div className="spotlight-facts">
+                {primaryActivity && <span><CalendarDays /> {primaryActivity.startLabel}</span>}
+                <span><MapPin /> {primaryActivity ? primaryActivity.venue.name : plan.rankedOptions[0].place.address}</span>
+                <span><Navigation /> {durationLabel(plan.rankedOptions[0].transport.durationMinutes)} {transportLabel(plan.rankedOptions[0].transport.mode)}</span>
+                {primaryActivity && <span><Ticket /> {primaryActivity.costLabel}</span>}
+              </div>
+              {primaryActivity && <div className="spotlight-notes"><span><Accessibility /> {primaryActivity.accessibilityLabel}</span>{primaryActivity.registrationUrl && <a href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">Official details</a>}</div>}
+            </> : <p>TAP found no matching place yet.</p>}
+          </article>
 
-            <article className={`decision-node backup ${branch === "fallback" ? "selected" : ""}`}>
-              <div className="tree-connector">if Plan A cannot continue</div>
-              <div className="node-top"><span className="node-letter">B</span><span className="node-state">{branch === "fallback" ? "Active fallback" : "Ready in the background"}</span></div>
-              <h3>Independent ride option</h3><p>Use a rideshare while keeping the same destination.</p>
-              {branch === "fallback" && <a className="primary-button link-button" href={uberLink} target="_blank" rel="noreferrer">Open Uber with destination <Navigation /></a>}
-            </article>
+          <article className="single-action-card">
+            <span className="action-label">YOUR NEXT STEP</span>
+            {branch === "coordination" && !contactReview && !coordination && <>
+              <h3>Ask {primaryContact?.name || "your trusted contact"} for help?</h3>
+              <p>TAP will show you the message before anything is sent.</p>
+              <button className="primary-button wide" onClick={() => setContactReview(true)}>Review message <MessageCircle /></button>
+            </>}
+            {branch === "coordination" && contactReview && !coordination && <>
+              <p className="message-preview">{plan.contactMessage.draft}</p>
+              <button className="primary-button wide" disabled={contactBusy} onClick={() => void askTrustedContact()}>{contactBusy ? "Sending…" : "Confirm and send"} <Send /></button>
+              <button className="text-button backup-link" onClick={useBackupInstead}>Use Plan B instead</button>
+            </>}
+            {coordination?.status === "waiting" && <div className="coordination-status waiting"><Clock3 /> Waiting up to two minutes for YES or NO…</div>}
+            {coordination?.status === "accepted" && <><div className="coordination-status accepted"><Check /> Help accepted. Plan A is confirmed.</div><a className="primary-button wide link-button" href={plan.rankedOptions[0]?.place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></>}
+            {branch === "primary" && !needsContact && <><h3>Your route is ready.</h3><a className="primary-button wide link-button" href={plan.rankedOptions[0]?.place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></>}
+            {branch === "fallback" && <><div className="coordination-status fallback"><RotateCcw /> {coordination?.id === "manual-fallback" ? "You chose Plan B." : coordination?.status === "declined" ? "Your contact is not available." : coordination?.status === "timed_out" ? "No reply arrived in time." : "TAP switched to Plan B."}</div><a className="primary-button wide link-button" href={uberLink} target="_blank" rel="noreferrer">Open Uber with destination <Navigation /></a></>}
+            {contactError && <div className="form-error" role="alert">{contactError}</div>}
+          </article>
 
-            <article className="decision-node reserve">
-              <div className="tree-connector">if Plan B is not right</div>
-              <div className="node-top"><span className="node-letter">C</span><span className="node-state">Reserve options</span></div>
-              <h3>Other ways to complete the goal</h3>
-              <ul>{plan.fallbackOptions.map((option) => <li key={option}>{option}</li>)}</ul>
-            </article>
-          </div>
-          {plan.rankedOptions.length > 1 && <section className="alternate-results"><h3>Other {plan.intent.category === "activity" ? "activities" : "nearby options"}</h3><div>{plan.rankedOptions.slice(1).map((option) => {
-            const activity = plan.activities.find((candidate) => candidate.venue.id === option.place.id);
-            return <article key={option.place.id}><strong>#{option.rank} {activity?.title ?? option.place.name}</strong>{activity && <span>{activity.startLabel} · {activity.venue.name}</span>}<span>{option.transport.durationMinutes} min {transportLabel(option.transport.mode)} · {option.transport.distanceMiles} miles</span></article>;
-          })}</div></section>}
-          <div className="journey-actions"><button className="secondary-button" onClick={onClose}>Start a new request</button></div>
+          <div className="backup-readiness" aria-label="Backup readiness"><span><Check /> Plan A selected</span><span><Check /> Plan B ride ready</span><span><Check /> Plan C alternatives ready</span></div>
         </section>}
       </main>
     </div>
