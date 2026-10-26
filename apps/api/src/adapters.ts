@@ -69,7 +69,7 @@ export async function parseIntent(request: string, profile: PlannerProfile, conf
       messages: [
         {
           role: "system",
-          content: "You are TAP's planning conductor for older adults. Convert the request into compact execution tags. Do not include phone numbers, exact addresses, or medical claims. Use the person's preferred language for goal, placeQuery, and timing. Always include fallback. Include contact only when trustedContactAvailable is true and coordination could help.",
+          content: "You are Cue's planning conductor for older adults. Convert the request into compact execution tags. Do not include phone numbers, exact addresses, or medical claims. Use the person's preferred language for goal, placeQuery, and timing. Always include fallback. Include contact only when trustedContactAvailable is true and coordination could help.",
         },
         { role: "user", content: JSON.stringify({ request, profile }) },
       ],

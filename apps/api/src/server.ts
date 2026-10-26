@@ -3,5 +3,5 @@ import { readConfig } from "./config.js";
 
 const config = readConfig();
 createApp(config).listen(config.port, () => {
-  console.log(`TAP conductor listening on http://localhost:${config.port}`);
+  console.log(`Cue conductor listening on http://localhost:${config.port}`);
 });

@@ -30,7 +30,7 @@ async function planningSessionRequest(user: AppUser, path: string, init?: Reques
   });
   if (response.status === 404) return null;
   const payload = await response.json().catch(() => ({})) as PlanningSession & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "TAP could not save this planning session.");
+  if (!response.ok) throw new Error(payload.error || "Cue could not save this planning session.");
   return payload;
 }
 
@@ -73,7 +73,7 @@ export async function requestConductorPlan(
     signal: AbortSignal.timeout(65_000),
   });
   const payload = await response.json().catch(() => ({})) as ConductorResponse & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "TAP could not prepare the plan.");
+  if (!response.ok) throw new Error(payload.error || "Cue could not prepare the plan.");
   return payload;
 }
 
@@ -85,7 +85,7 @@ export async function sendContactRequest(user: AppUser, contact: TrustedContact,
     signal: AbortSignal.timeout(20_000),
   });
   const payload = await response.json().catch(() => ({})) as SendContactMessageResponse & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "TAP could not contact this person.");
+  if (!response.ok) throw new Error(payload.error || "Cue could not contact this person.");
   return payload;
 }
 
@@ -95,7 +95,7 @@ export async function readCoordinationStatus(user: AppUser, confirmationId: stri
     signal: AbortSignal.timeout(10_000),
   });
   const payload = await response.json().catch(() => ({})) as CoordinationStatusResponse & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "TAP could not check the reply.");
+  if (!response.ok) throw new Error(payload.error || "Cue could not check the reply.");
   return payload;
 }
 
@@ -106,5 +106,5 @@ export async function deleteConductorData(user: AppUser) {
     headers: await requestHeaders(user),
     signal: AbortSignal.timeout(15_000),
   });
-  if (!response.ok && response.status !== 404) throw new Error("TAP could not delete conductor activity.");
+  if (!response.ok && response.status !== 404) throw new Error("Cue could not delete conductor activity.");
 }

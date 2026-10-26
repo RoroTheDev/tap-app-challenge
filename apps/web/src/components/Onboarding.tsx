@@ -133,7 +133,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
         {step === 0 && (
           <div className="form-section">
             <h2>A little about you</h2>
-            <p>Choose the language TAP should use in your main hub and when listening to voice requests.</p>
+            <p>Choose the language Cue should use in your main hub and when listening to voice requests.</p>
             <div className="field-grid two">
               <label>Preferred name <span className="required">Required</span>
                 <input value={profile.displayName} onChange={(event) => update("displayName", event.target.value)} maxLength={80} />
@@ -144,12 +144,12 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
               <label>Birth year <span className="optional">Optional</span>
                 <input type="number" min="1900" max={new Date().getFullYear()} value={profile.birthYear ?? ""} onChange={(event) => update("birthYear", event.target.value ? Number(event.target.value) : null)} placeholder="1955" />
               </label>
-              <label>How should TAP reach you?
+              <label>How should Cue reach you?
                 <select value={profile.contactPreference} onChange={(event) => update("contactPreference", event.target.value as SeniorProfile["contactPreference"])}>
                   <option value="text">Text message</option><option value="call">Phone call</option><option value="email">Email</option>
                 </select>
               </label>
-              <label>What language should TAP speak with you? <span className="required">Required</span>
+              <label>What language should Cue speak with you? <span className="required">Required</span>
                 <select value={profile.preferredLanguage} onChange={(event) => update("preferredLanguage", event.target.value)}>
                   {languageOptions.map((language) => <option key={language}>{language}</option>)}
                 </select>
@@ -158,7 +158,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
                 <input value={profile.secondaryLanguage} onChange={(event) => update("secondaryLanguage", event.target.value)} maxLength={40} placeholder="Language or dialect" />
               </label>
             </div>
-            <label>How can TAP communicate more clearly with you? <span className="optional">Optional</span>
+            <label>How can Cue communicate more clearly with you? <span className="optional">Optional</span>
               <textarea value={profile.communicationNotes} onChange={(event) => update("communicationNotes", event.target.value)} maxLength={500} placeholder="For example: Use short sentences, read choices aloud, or give me extra time." />
             </label>
           </div>
@@ -210,7 +210,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
                   <option value={15}>About 15 minutes</option><option value={30}>About 30 minutes</option><option value={45}>About 45 minutes</option><option value={60}>About 1 hour</option><option value={0}>Flexible</option>
                 </select>
               </label>
-              <label>How many choices should TAP show?
+              <label>How many choices should Cue show?
                 <select value={profile.planPreference} onChange={(event) => update("planPreference", event.target.value as SeniorProfile["planPreference"])}>
                   <option value="simple">One best choice</option><option value="balanced">A few choices</option><option value="detailed">More detail and options</option>
                 </select>
@@ -238,7 +238,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
 
         {step === 3 && (
           <div className="form-section">
-            <div className="section-heading-with-icon"><HeartHandshake /><div><h2>Your trusted circle</h2><p>Add someone TAP may help you coordinate with. You can skip this and add them later.</p></div></div>
+            <div className="section-heading-with-icon"><HeartHandshake /><div><h2>Your trusted circle</h2><p>Add someone Cue may help you coordinate with. You can skip this and add them later.</p></div></div>
             <div className="contact-list">
               {contacts.map((contact, index) => (
                 <article className="contact-card" key={contact.id}>
@@ -249,7 +249,7 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
                     <label>Phone number<input type="tel" value={contact.phone} onChange={(event) => updateContact(contact.id, "phone", event.target.value)} maxLength={24} placeholder="(555) 555-0123" /></label>
                     <label>Email <span className="optional">Optional</span><input type="email" value={contact.email} onChange={(event) => updateContact(contact.id, "email", event.target.value)} maxLength={120} /></label>
                   </div>
-                  <label className="check-line"><input type="checkbox" checked={contact.canReceiveSms} onChange={(event) => updateContact(contact.id, "canReceiveSms", event.target.checked)} /><span>TAP may prepare text messages for this person when I ask.</span></label>
+                  <label className="check-line"><input type="checkbox" checked={contact.canReceiveSms} onChange={(event) => updateContact(contact.id, "canReceiveSms", event.target.checked)} /><span>Cue may prepare text messages for this person when I ask.</span></label>
                   <label className="check-line"><input type="checkbox" checked={contact.permissionConfirmed} onChange={(event) => updateContact(contact.id, "permissionConfirmed", event.target.checked)} /><span>I have this person's permission to save their contact information.</span></label>
                 </article>
               ))}
@@ -262,15 +262,15 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
           <div className="form-section privacy-step">
             <div className="privacy-icon"><LockKeyhole /></div>
             <h2>You stay in control.</h2>
-            <p>These answers make TAP more useful, but they belong to you. You can update or delete them later.</p>
+            <p>These answers make Cue more useful, but they belong to you. You can update or delete them later.</p>
             <div className="privacy-points">
               <div><Check /><span><strong>Your profile is private.</strong> Only your signed-in account can read it.</span></div>
               <div><Check /><span><strong>The planner gets less.</strong> We share your city and preferences, not your exact street address or contact numbers.</span></div>
-              <div><Check /><span><strong>Actions need permission.</strong> TAP will ask before messaging a contact, booking, or sharing location.</span></div>
+              <div><Check /><span><strong>Actions need permission.</strong> Cue will ask before messaging a contact, booking, or sharing location.</span></div>
             </div>
-            <label className="check-line consent"><input type="checkbox" checked={profile.personalizationConsent} onChange={(event) => update("personalizationConsent", event.target.checked)} /><span>I agree to let TAP use my answers to personalize suggestions. <b>Required</b></span></label>
-            <label className="check-line consent"><input type="checkbox" checked={profile.locationUseConsent} onChange={(event) => update("locationUseConsent", event.target.checked)} /><span>TAP may use my address to calculate nearby options and travel time. <b>Optional</b></span></label>
-            <label>Anything TAP should know to make things easier? <span className="optional">Optional</span>
+            <label className="check-line consent"><input type="checkbox" checked={profile.personalizationConsent} onChange={(event) => update("personalizationConsent", event.target.checked)} /><span>I agree to let Cue use my answers to personalize suggestions. <b>Required</b></span></label>
+            <label className="check-line consent"><input type="checkbox" checked={profile.locationUseConsent} onChange={(event) => update("locationUseConsent", event.target.checked)} /><span>Cue may use my address to calculate nearby options and travel time. <b>Optional</b></span></label>
+            <label>Anything Cue should know to make things easier? <span className="optional">Optional</span>
               <textarea value={profile.accessibilityNotes} onChange={(event) => update("accessibilityNotes", event.target.value)} maxLength={500} placeholder="For example: I prefer large text, quiet places, or routes without stairs." />
             </label>
           </div>

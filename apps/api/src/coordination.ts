@@ -108,13 +108,13 @@ export async function handleIncomingReply(from: string, body: string) {
   const hash = contactHash(from);
   const indexRef = db.doc(`coordinationByContact/${hash}`);
   const indexSnapshot = await indexRef.get();
-  if (!indexSnapshot.exists) return { handled: false, reply: "TAP could not find an active request." };
+  if (!indexSnapshot.exists) return { handled: false, reply: "Cue could not find an active request." };
   const requestId = String(indexSnapshot.data()?.requestId ?? "");
   const requestRef = db.doc(`coordinationRequests/${requestId}`);
   const requestSnapshot = await requestRef.get();
   if (!requestSnapshot.exists) {
     await indexRef.delete();
-    return { handled: false, reply: "TAP could not find an active request." };
+    return { handled: false, reply: "Cue could not find an active request." };
   }
   const data = requestSnapshot.data()!;
   if (data.status !== "waiting") return { handled: false, reply: "This request is already complete." };
@@ -122,7 +122,7 @@ export async function handleIncomingReply(from: string, body: string) {
   if (expiresAt.toMillis() <= Date.now()) {
     await requestRef.update({ status: "timed_out", updatedAt: FieldValue.serverTimestamp() });
     await indexRef.delete();
-    return { handled: true, reply: "That request has timed out. TAP is preparing another option." };
+    return { handled: true, reply: "That request has timed out. Cue is preparing another option." };
   }
 
   const status: CoordinationStatus | null = interpretCoordinationReply(body);
@@ -131,7 +131,7 @@ export async function handleIncomingReply(from: string, body: string) {
   batch.update(requestRef, { status, responseReceivedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   batch.delete(indexRef);
   await batch.commit();
-  return { handled: true, reply: status === "accepted" ? "Thanks — TAP marked the ride help as accepted." : "Thanks — TAP will prepare another transportation option." };
+  return { handled: true, reply: status === "accepted" ? "Thanks — Cue marked the ride help as accepted." : "Thanks — Cue will prepare another transportation option." };
 }
 
 export function twimlReply(message: string) {

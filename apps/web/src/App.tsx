@@ -47,13 +47,13 @@ function Landing({ openAuth, openLegal, authError }: { openAuth: (mode: Exclude<
           <div className="hero-copy">
             <div className="eyebrow"><Sparkles /> A HELPING HAND FOR EVERYDAY LIFE</div>
             <h1>Life gets easier when you only have to <em>ask.</em></h1>
-            <p>TAP listens to what you want to do, then brings the right people, places, and services together in one clear plan.</p>
-            <div className="hero-actions"><button className="primary-button large" onClick={() => openAuth("signup")}>Start with TAP <ArrowRight /></button><span><ShieldCheck /> Free to join · You stay in control</span></div>
+            <p>Cue listens to what you want to do, then brings the right people, places, and services together in one clear plan.</p>
+            <div className="hero-actions"><button className="primary-button large" onClick={() => openAuth("signup")}>Start with Cue <ArrowRight /></button><span><ShieldCheck /> Free to join · You stay in control</span></div>
           </div>
-          <div className="hero-visual" aria-label="A sample TAP plan">
+          <div className="hero-visual" aria-label="A sample Cue plan">
             <div className="sun-shape" />
             <div className="plan-card card-one"><span className="mini-icon coral"><MessageCircleHeart /></span><div><small>YOU SAID</small><strong>“I want to go shopping.”</strong></div></div>
-            <div className="plan-card card-two"><span className="mini-icon green"><MapPin /></span><div><small>TAP FOUND</small><strong>3 nearby stores</strong><p>Easy routes · Open today</p></div></div>
+            <div className="plan-card card-two"><span className="mini-icon green"><MapPin /></span><div><small>Cue FOUND</small><strong>3 nearby stores</strong><p>Easy routes · Open today</p></div></div>
             <div className="plan-card card-three"><span className="mini-icon blue"><HeartHandshake /></span><div><small>NEXT STEP</small><strong>Ask Maya about a ride?</strong><span className="demo-action">Yes, prepare a text <ArrowRight /></span></div></div>
             <div className="floating-pill"><Check /> A simple plan, ready in moments</div>
           </div>
@@ -61,22 +61,22 @@ function Landing({ openAuth, openLegal, authError }: { openAuth: (mode: Exclude<
 
         <section className="promise-strip">
           <div><Users /><span><strong>Made for real life</strong>Not another complicated app</span></div>
-          <div><ShieldCheck /><span><strong>Private by design</strong>You choose what TAP can do</span></div>
+          <div><ShieldCheck /><span><strong>Private by design</strong>You choose what Cue can do</span></div>
           <div><MessageCircleHeart /><span><strong>Speaks your language</strong>Clear, patient, and personal</span></div>
         </section>
 
         <section className="how-section" id="how-it-works">
-          <div className="section-intro"><div className="eyebrow">HOW TAP HELPS</div><h2>From “I wish…” to a plan you can use.</h2><p>No searching through five different apps. No confusing menus. Just tell TAP what matters today.</p></div>
+          <div className="section-intro"><div className="eyebrow">HOW Cue HELPS</div><h2>From “I wish…” to a plan you can use.</h2><p>No searching through five different apps. No confusing menus. Just tell Cue what matters today.</p></div>
           <div className="story-grid">
             <article><span>01</span><MessageCircleHeart /><h3>Say what you need</h3><p>Type it or use your voice. Speak naturally in your preferred language.</p></article>
-            <article><span>02</span><Sparkles /><h3>TAP connects the pieces</h3><p>It considers your interests, mobility, location, schedule, and trusted circle.</p></article>
-            <article><span>03</span><CalendarHeart /><h3>Choose your next step</h3><p>Get a short, ranked plan. TAP asks before contacting anyone or taking action.</p></article>
+            <article><span>02</span><Sparkles /><h3>Cue connects the pieces</h3><p>It considers your interests, mobility, location, schedule, and trusted circle.</p></article>
+            <article><span>03</span><CalendarHeart /><h3>Choose your next step</h3><p>Get a short, ranked plan. Cue asks before contacting anyone or taking action.</p></article>
           </div>
         </section>
 
         <section className="cta-section"><div><div className="eyebrow">YOUR DAY, YOUR WAY</div><h2>Let’s make everyday plans feel possible again.</h2></div><button className="primary-button light" onClick={() => openAuth("signup")}>Create my free profile <ArrowRight /></button></section>
       </main>
-      <footer className="site-footer"><Logo /><p>Technology that brings people closer.</p><nav aria-label="Legal"><button className="text-button" onClick={() => openLegal("privacy")}>Privacy</button><button className="text-button" onClick={() => openLegal("terms")}>Terms</button></nav><span>© 2026 TAP</span></footer>
+      <footer className="site-footer"><Logo /><p>Technology that brings people closer.</p><nav aria-label="Legal"><button className="text-button" onClick={() => openLegal("privacy")}>Privacy</button><button className="text-button" onClick={() => openLegal("terms")}>Terms</button></nav><span>© 2026 Cue</span></footer>
     </div>
   );
 }
@@ -112,7 +112,7 @@ export default function App() {
       }
     } catch {
       if (sequence !== hydrationSequence.current) return;
-      setLoadError("TAP couldn't load your profile. Check your connection and try again.");
+      setLoadError("Cue couldn't load your profile. Check your connection and try again.");
     } finally {
       if (sequence === hydrationSequence.current) setLoading(false);
     }
@@ -176,7 +176,7 @@ export default function App() {
       await logOut();
       await hydrate(null);
     } catch {
-      setLoadError("TAP couldn't log you out. Check your connection and try again.");
+      setLoadError("Cue couldn't log you out. Check your connection and try again.");
       setLoading(false);
     }
   }
@@ -192,7 +192,7 @@ export default function App() {
   }
 
   if (legalDocument) return <LegalPage document={legalDocument} onBack={closeLegal} onSwitch={openLegal} />;
-  if (loading) return <div className="loading-screen"><Logo /><span>Getting TAP ready…</span></div>;
+  if (loading) return <div className="loading-screen"><Logo /><span>Getting Cue ready…</span></div>;
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
   if (!user) return <><Landing openAuth={setAuthMode} openLegal={openLegal} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} onCancel={editing ? () => setEditing(false) : undefined} />;

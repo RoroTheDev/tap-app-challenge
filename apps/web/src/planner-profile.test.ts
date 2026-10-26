@@ -97,7 +97,7 @@ describe("onboarding validation", () => {
 describe("personalized hub", () => {
   it("uses the saved language for hub copy and speech recognition", () => {
     const copy = getHubCopy("Spanish");
-    expect(copy.askTitle).toBe("Dile a TAP lo que necesitas");
+    expect(copy.askTitle).toBe("Dile a Cue lo que necesitas");
     expect(speechLocales.Spanish).toBe("es-US");
     expect(getTextDirection("Arabic")).toBe("rtl");
   });

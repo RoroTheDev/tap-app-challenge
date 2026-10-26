@@ -119,7 +119,7 @@ export function createApp(config: ApiConfig = readConfig()) {
 
   app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     const status = error instanceof z.ZodError ? 400 : typeof error === "object" && error && "status" in error ? Number(error.status) : 500;
-    const message = status >= 500 ? "TAP could not prepare the plan. Please try again." : error instanceof Error ? error.message : "Invalid request.";
+    const message = status >= 500 ? "Cue could not prepare the plan. Please try again." : error instanceof Error ? error.message : "Invalid request.";
     if (status >= 500) console.error(error);
     response.status(status).json({ error: message });
   });

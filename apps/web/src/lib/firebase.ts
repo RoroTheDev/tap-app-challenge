@@ -55,7 +55,7 @@ function mapUser(user: User): AppUser {
   return {
     uid: user.uid,
     email: user.email ?? "",
-    displayName: user.displayName ?? user.email?.split("@")[0] ?? "TAP member",
+    displayName: user.displayName ?? user.email?.split("@")[0] ?? "Cue member",
     photoURL: user.photoURL ?? undefined,
   };
 }
@@ -172,7 +172,7 @@ export async function loadProfile(uid: string) {
       ? normalizeSeniorProfile(profileSnapshot.data(), {
         uid,
         email: auth?.currentUser?.email ?? "",
-        displayName: auth?.currentUser?.displayName ?? "TAP member",
+        displayName: auth?.currentUser?.displayName ?? "Cue member",
       })
       : null,
     contacts: normalizeTrustedContacts(contactSnapshot.docs.map((item) => ({

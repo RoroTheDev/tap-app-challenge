@@ -14,7 +14,7 @@ export function onboardingStepError(
   currentYear = new Date().getFullYear(),
 ) {
   if (step === 0) {
-    if (!profile.displayName.trim()) return "Please enter the name you would like TAP to use.";
+    if (!profile.displayName.trim()) return "Please enter the name you would like Cue to use.";
     if (!profile.preferredLanguage) return "Please choose your preferred language.";
     if (profile.phone.trim() && !hasEnoughPhoneDigits(profile.phone)) return "Please enter a valid phone number, or leave it blank.";
     if (profile.birthYear !== null && (profile.birthYear < 1900 || profile.birthYear > currentYear)) return `Please enter a birth year from 1900 to ${currentYear}.`;

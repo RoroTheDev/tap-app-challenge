@@ -104,7 +104,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         await updatePlanningSession(user, sessionId, { phase: "ready", status: "ready", plan: result }).catch(() => undefined);
       } catch (reason) {
         if (!stopped) {
-          setError(reason instanceof Error ? reason.message : "TAP could not prepare this plan.");
+          setError(reason instanceof Error ? reason.message : "Cue could not prepare this plan.");
           void updatePlanningSession(user, sessionId, { status: "failed" }).catch(() => undefined);
         }
       }
@@ -131,7 +131,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
           }).catch(() => undefined);
         }
       } catch {
-        if (!stopped) setContactError("TAP could not check the reply. Your backup plan is still ready.");
+        if (!stopped) setContactError("Cue could not check the reply. Your backup plan is still ready.");
       } finally { checking = false; }
     };
     const interval = window.setInterval(() => void check(), 3_000);
@@ -160,7 +160,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
         coordinationExpiresAt: result.expiresAt,
       });
     } catch (reason) {
-      setContactError(reason instanceof Error ? reason.message : "TAP could not contact this person.");
+      setContactError(reason instanceof Error ? reason.message : "Cue could not contact this person.");
       setCoordination({ id: "failed", status: "failed", expiresAt: new Date().toISOString() });
       void updatePlanningSession(user, sessionId, { coordinationStatus: "failed", status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
     } finally { setContactBusy(false); }
@@ -174,10 +174,10 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
 
   return (
     <div className="journey-shell">
-      <header className="journey-header"><Logo /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></header>
+      <header className="journey-header"><Logo /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to Cue</button></header>
       <main className={`journey-main ${plan ? "plan-ready-view" : "journey-loading-view"}`} id="tap-journey-main">
         {plan && <div className="journey-intro">
-          <div className="eyebrow"><Sparkles /> TAP CONDUCTOR</div>
+          <div className="eyebrow"><Sparkles /> Cue CONDUCTOR</div>
           <h1>{feature.label}</h1>
           <p>“{request}”</p>
         </div>}
@@ -206,7 +206,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
                 {primaryActivity && <span><Ticket /> {primaryActivity.costLabel}</span>}
               </div>
               {primaryActivity && <div className="spotlight-notes"><span><Accessibility /> {primaryActivity.accessibilityLabel}</span>{primaryActivity.registrationUrl && <a href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">Official details</a>}</div>}
-            </> : <p>TAP found no matching place yet.</p>}
+            </> : <p>Cue found no matching place yet.</p>}
           </article>
 
           <article className="single-action-card">
@@ -224,7 +224,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
             {coordination?.status === "waiting" && <div className="coordination-status waiting"><Clock3 /> Waiting up to two minutes for YES or NO…</div>}
             {coordination?.status === "accepted" && <><div className="coordination-status accepted"><Check /> Help accepted. Plan A is confirmed.</div><a className="primary-button wide link-button" href={plan.rankedOptions[0]?.place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></>}
             {branch === "primary" && !needsContact && <><h3>Your route is ready.</h3><a className="primary-button wide link-button" href={plan.rankedOptions[0]?.place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></>}
-            {branch === "fallback" && <><div className="coordination-status fallback"><RotateCcw /> {coordination?.id === "manual-fallback" ? "You chose Plan B." : coordination?.status === "declined" ? "Your contact is not available." : coordination?.status === "timed_out" ? "No reply arrived in time." : "TAP switched to Plan B."}</div><a className="primary-button wide link-button" href={uberLink} target="_blank" rel="noreferrer">Open Uber with destination <Navigation /></a></>}
+            {branch === "fallback" && <><div className="coordination-status fallback"><RotateCcw /> {coordination?.id === "manual-fallback" ? "You chose Plan B." : coordination?.status === "declined" ? "Your contact is not available." : coordination?.status === "timed_out" ? "No reply arrived in time." : "Cue switched to Plan B."}</div><a className="primary-button wide link-button" href={uberLink} target="_blank" rel="noreferrer">Open Uber with destination <Navigation /></a></>}
             {contactError && <div className="form-error" role="alert">{contactError}</div>}
           </article>
 

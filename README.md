@@ -1,6 +1,6 @@
-# TAP — senior orchestration companion
+# Cue — senior orchestration companion
 
-TAP helps older adults turn everyday goals into clear, supported plans. The
+Cue helps older adults turn everyday goals into clear, supported plans. The
 first product slice is a welcoming registration and onboarding flow that gives
 the future conductor enough context to personalize suggestions without sending
 raw private data to an AI model.
@@ -73,7 +73,7 @@ and must never be added to frontend variables or committed files.
 
 Set `VITE_UBER_CLIENT_ID` to the public Client ID from an Uber developer app to
 turn the Plan B button into a universal link with current-location pickup and
-the selected TAP destination prefilled. Never place an Uber Client Secret in a
+the selected Cue destination prefilled. Never place an Uber Client Secret in a
 `VITE_` variable.
 
 Open `http://localhost:5173`.
@@ -91,7 +91,7 @@ trusted-contact preparation, and fallback preparation concurrently. Missing
 service credentials use clearly labeled mock adapters rather than stopping the
 workflow.
 
-If the `VITE_FIREBASE_*` values are blank, TAP automatically uses preview mode
+If the `VITE_FIREBASE_*` values are blank, Cue automatically uses preview mode
 and stores the sample profile only in that browser. The real project web config
 can be retrieved with:
 

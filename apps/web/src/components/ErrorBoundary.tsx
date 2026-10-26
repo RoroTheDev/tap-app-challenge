@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, details: ErrorInfo) {
-    console.error("TAP could not render the current screen.", error, details.componentStack);
+    console.error("Cue could not render the current screen.", error, details.componentStack);
   }
 
   render() {
@@ -25,9 +25,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <main className="loading-screen error-state">
           <Logo />
-          <h1>Let’s get TAP back on track.</h1>
+          <h1>Let’s get Cue back on track.</h1>
           <p>Something unexpected interrupted this screen. Your account and saved answers are still safe.</p>
-          <button className="primary-button" type="button" onClick={() => window.location.reload()}>Reload TAP</button>
+          <button className="primary-button" type="button" onClick={() => window.location.reload()}>Reload Cue</button>
         </main>
       );
     }

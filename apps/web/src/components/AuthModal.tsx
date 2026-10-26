@@ -20,7 +20,7 @@ function authErrorMessage(error: unknown) {
   if (code.includes("operation-not-allowed")) return "This sign-in method still needs to be enabled in Firebase.";
   if (code.includes("unauthorized-domain")) return "This website still needs to be added to Firebase's authorized domains.";
   if (code.includes("network-request-failed")) return "We couldn't reach Firebase. Check your connection and try again.";
-  if (code.includes("redirect-blocked")) return "This browser blocked Google sign-in. Open TAP in Chrome, Edge, or Safari—or use email instead.";
+  if (code.includes("redirect-blocked")) return "This browser blocked Google sign-in. Open Cue in Chrome, Edge, or Safari—or use email instead.";
   if (code.includes("redirect-incomplete")) return "Google sign-in returned without finishing. Please try again or use email.";
   return "We couldn't sign you in. Please try again.";
 }
@@ -76,10 +76,10 @@ export function AuthModal({ initialMode, onClose, onSuccess }: AuthModalProps) {
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section ref={modalRef} className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description" onKeyDown={handleDialogKeyDown}>
         <button ref={firstControlRef} type="button" className="icon-button close-button" onClick={onClose} aria-label="Close sign in"><X /></button>
-        <div className="eyebrow">WELCOME TO TAP</div>
+        <div className="eyebrow">WELCOME TO Cue</div>
         <h2 id="auth-title">{mode === "signup" ? "Create your account" : "Welcome back"}</h2>
         <p className="modal-copy" id="auth-description">
-          {mode === "signup" ? "A few simple details now will help TAP support you better." : "Sign in to continue where you left off."}
+          {mode === "signup" ? "A few simple details now will help Cue support you better." : "Sign in to continue where you left off."}
         </p>
 
         <button type="button" className="google-button" disabled={busy} onClick={() => void run(continueWithGoogle)}>
@@ -111,7 +111,7 @@ export function AuthModal({ initialMode, onClose, onSuccess }: AuthModalProps) {
           </button>
         </form>
         <p className="switch-auth">
-          {mode === "signup" ? "Already have an account?" : "New to TAP?"}{" "}
+          {mode === "signup" ? "Already have an account?" : "New to Cue?"}{" "}
           <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(""); }}>
             {mode === "signup" ? "Log in" : "Create one"}
           </button>

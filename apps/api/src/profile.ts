@@ -39,7 +39,7 @@ export async function loadPlannerProfile(identity: RequestIdentity, body: unknow
     db.collection(`users/${identity.uid}/trustedContacts`).get(),
     getAuth().getUser(identity.uid),
   ]);
-  if (!profileSnapshot.exists) throw Object.assign(new Error("Complete your TAP profile first."), { status: 409 });
+  if (!profileSnapshot.exists) throw Object.assign(new Error("Complete your Cue profile first."), { status: 409 });
   const data = profileSnapshot.data() ?? {};
   const stringList = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
   const contacts = contactSnapshot.docs.map((document, index): TrustedContact => {
@@ -57,7 +57,7 @@ export async function loadPlannerProfile(identity: RequestIdentity, body: unknow
     };
   });
   const birthYear = typeof data.birthYear === "number" ? data.birthYear : null;
-  const displayName = typeof data.displayName === "string" ? data.displayName : (user.displayName ?? "TAP member");
+  const displayName = typeof data.displayName === "string" ? data.displayName : (user.displayName ?? "Cue member");
   const profile: PlannerProfile = {
     firstName: displayName.trim().split(/\s+/)[0] || "there",
     preferredLanguage: typeof data.preferredLanguage === "string" ? data.preferredLanguage : "English",

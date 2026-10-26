@@ -276,7 +276,7 @@ export function normalizeSeniorProfile(input: unknown, identity: ProfileIdentity
   return {
     uid: identity.uid,
     email: identity.email,
-    displayName: stringValue(data.displayName, identity.displayName || identity.email.split("@")[0] || "TAP member"),
+    displayName: stringValue(data.displayName, identity.displayName || identity.email.split("@")[0] || "Cue member"),
     phone: stringValue(data.phone),
     birthYear,
     preferredLanguage: stringValue(data.preferredLanguage, "English"),
