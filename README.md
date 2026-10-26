@@ -24,6 +24,11 @@ Live app: <https://congressapp-849ff.web.app>
 - Live Activity Finder results from Ticketmaster combined with curated Fremont
   Age Well programs, official registration links, cost/date labels,
   accessibility disclosure, route feasibility, and senior-profile ranking
+- Source provenance and freshness labels for live and curated activity data
+- Owner-only, 24-hour planning sessions that preserve conductor progress,
+  results, contact outcomes, and the selected fallback branch
+- Public plain-language Privacy Policy and Terms pages with a non-emergency
+  warning and disclosures for every current third-party provider
 - Explicit trusted-contact confirmation, WhatsApp delivery, signed inbound
   webhook validation, bounded YES/NO waiting, and Uber handoff after a decline
   or timeout
@@ -65,6 +70,11 @@ variables; place those in `apps/api/.env.local`.
 Activity Finder uses `TICKETMASTER_API_KEY` only on the server. The public
 Ticketmaster Discovery key is stored as a Firebase function secret in production
 and must never be added to frontend variables or committed files.
+
+Set `VITE_UBER_CLIENT_ID` to the public Client ID from an Uber developer app to
+turn the Plan B button into a universal link with current-location pickup and
+the selected TAP destination prefilled. Never place an Uber Client Secret in a
+`VITE_` variable.
 
 Open `http://localhost:5173`.
 
@@ -114,6 +124,7 @@ The frontend is already registered as the Firebase web app
 - `users/{uid}/trustedContacts/{contactId}` — private trusted contacts
 - `coordinationRequests/{requestId}` — server-only confirmation state
 - `coordinationByContact/{phoneHash}` — server-only current-request lookup
+- `users/{uid}/planningSessions/{sessionId}` — server-only 24-hour conductor state
 
 The two user paths require Firebase Authentication and may be read or changed only by
 the matching account UID. The rules validate allowed fields, types, sizes,

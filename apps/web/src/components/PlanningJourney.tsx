@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Accessibility, ArrowLeft, CalendarDays, Check, Circle, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
 import type { ConductorResponse, CoordinationStatus, SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
-import { readCoordinationStatus, requestConductorPlan, sendContactRequest } from "../lib/conductor";
+import { createPlanningSession, readCoordinationStatus, readPlanningSession, requestConductorPlan, sendContactRequest, updatePlanningSession } from "../lib/conductor";
 import { activePlanBranch, getFeatureDefinition, getPhaseLabel, type PlanningPhase } from "../lib/workflow";
+import { buildUberDeepLink } from "../lib/uber";
 import { Logo } from "./Logo";
 
 interface PlanningJourneyProps {
+  sessionId: string;
   request: string;
   user: AppUser;
   profile: SeniorProfile;
@@ -16,7 +18,7 @@ interface PlanningJourneyProps {
 
 const phases: PlanningPhase[] = ["understanding", "discovering", "transport", "fallbacks", "ready"];
 
-export function PlanningJourney({ request, user, profile, contacts, onClose }: PlanningJourneyProps) {
+export function PlanningJourney({ sessionId, request, user, profile, contacts, onClose }: PlanningJourneyProps) {
   const [phase, setPhase] = useState<PlanningPhase>("understanding");
   const [plan, setPlan] = useState<ConductorResponse | null>(null);
   const [error, setError] = useState("");
@@ -30,23 +32,44 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
   const branch = activePlanBranch(needsContact, coordination?.status);
   const feature = getFeatureDefinition(plan?.intent.category);
   const primaryActivity = plan?.activities.find((activity) => activity.venue.id === plan.rankedOptions[0]?.place.id);
+  const uberLink = buildUberDeepLink(import.meta.env.VITE_UBER_CLIENT_ID as string | undefined, plan?.rankedOptions[0]?.place);
 
   useEffect(() => {
     let stopped = false;
-    const timers = [
-      window.setTimeout(() => !stopped && setPhase("discovering"), 650),
-      window.setTimeout(() => !stopped && setPhase("transport"), 1_500),
-      window.setTimeout(() => !stopped && setPhase("fallbacks"), 2_400),
-    ];
-    void requestConductorPlan(request, user, profile, contacts).then((result) => {
+    const savePhase = (nextPhase: PlanningPhase) => {
       if (stopped) return;
-      setPlan(result);
-      setPhase("ready");
-    }).catch((reason) => {
-      if (!stopped) setError(reason instanceof Error ? reason.message : "TAP could not prepare this plan.");
-    });
+      setPhase(nextPhase);
+      void updatePlanningSession(user, sessionId, { phase: nextPhase }).catch(() => undefined);
+    };
+    const timers = [
+      window.setTimeout(() => savePhase("discovering"), 650),
+      window.setTimeout(() => savePhase("transport"), 1_500),
+      window.setTimeout(() => savePhase("fallbacks"), 2_400),
+    ];
+    void (async () => {
+      try {
+        const existing = await readPlanningSession(user, sessionId);
+        if (existing?.plan) {
+          timers.forEach(window.clearTimeout);
+          if (!stopped) { setPlan(existing.plan); setPhase("ready"); }
+          return;
+        }
+        if (!existing) await createPlanningSession(user, sessionId, request);
+        const result = await requestConductorPlan(request, user, profile, contacts);
+        if (stopped) return;
+        timers.forEach(window.clearTimeout);
+        setPlan(result);
+        setPhase("ready");
+        await updatePlanningSession(user, sessionId, { phase: "ready", status: "ready", plan: result });
+      } catch (reason) {
+        if (!stopped) {
+          setError(reason instanceof Error ? reason.message : "TAP could not prepare this plan.");
+          void updatePlanningSession(user, sessionId, { status: "failed" }).catch(() => undefined);
+        }
+      }
+    })();
     return () => { stopped = true; timers.forEach(window.clearTimeout); };
-  }, [request, user, profile, contacts]);
+  }, [sessionId, request, user, profile, contacts]);
 
   useEffect(() => {
     if (!coordination || coordination.status !== "waiting" || user.isDemo) return;
@@ -57,7 +80,15 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
       checking = true;
       try {
         const current = await readCoordinationStatus(user, coordination.id);
-        if (!stopped) setCoordination(current);
+        if (!stopped) {
+          setCoordination(current);
+          const fallback = ["declined", "timed_out", "failed"].includes(current.status);
+          void updatePlanningSession(user, sessionId, {
+            coordinationStatus: current.status,
+            status: current.status === "accepted" ? "accepted" : fallback ? "fallback" : "waiting_for_contact",
+            selectedOptionRank: current.status === "accepted" ? 1 : fallback ? 2 : null,
+          }).catch(() => undefined);
+        }
       } catch {
         if (!stopped) setContactError("TAP could not check the reply. Your backup plan is still ready.");
       } finally { checking = false; }
@@ -65,11 +96,14 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
     const interval = window.setInterval(() => void check(), 3_000);
     const remaining = Math.max(0, new Date(coordination.expiresAt).getTime() - Date.now());
     const timeout = window.setTimeout(() => {
-      if (!stopped) setCoordination((current) => current ? { ...current, status: "timed_out" } : current);
+      if (!stopped) {
+        setCoordination((current) => current ? { ...current, status: "timed_out" } : current);
+        void updatePlanningSession(user, sessionId, { coordinationStatus: "timed_out", status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
+      }
     }, remaining);
     void check();
     return () => { stopped = true; window.clearInterval(interval); window.clearTimeout(timeout); };
-  }, [coordination?.id, coordination?.status, coordination?.expiresAt, user]);
+  }, [coordination?.id, coordination?.status, coordination?.expiresAt, sessionId, user]);
 
   const currentPhaseIndex = phases.indexOf(phase);
   const statusText = useMemo(() => getPhaseLabel(phase, plan?.intent.category), [phase, plan?.intent.category]);
@@ -81,9 +115,11 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
     try {
       const result = await sendContactRequest(user, primaryContact, plan.contactMessage.draft);
       setCoordination({ id: result.confirmationId, status: result.simulated ? "timed_out" : result.status, expiresAt: result.expiresAt });
+      await updatePlanningSession(user, sessionId, { status: result.simulated ? "fallback" : "waiting_for_contact", coordinationStatus: result.simulated ? "timed_out" : result.status });
     } catch (reason) {
       setContactError(reason instanceof Error ? reason.message : "TAP could not contact this person.");
       setCoordination({ id: "failed", status: "failed", expiresAt: new Date().toISOString() });
+      void updatePlanningSession(user, sessionId, { coordinationStatus: "failed", status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
     } finally { setContactBusy(false); }
   }
 
@@ -118,6 +154,7 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
                 <p><MapPin /> {primaryActivity ? `${primaryActivity.venue.name} · ${primaryActivity.venue.address}` : plan.rankedOptions[0].place.address}</p>
                 <p><Navigation /> {plan.rankedOptions[0].transport.durationMinutes} minutes · {plan.rankedOptions[0].transport.distanceMiles} miles</p>
                 {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
+                {primaryActivity && <span className="source-freshness"><Check /> {primaryActivity.source === "ticketmaster" ? "Live Ticketmaster listing" : "Verified local senior program"} · checked {new Date(primaryActivity.lastVerifiedAt).toLocaleDateString()}</span>}
                 <small>{plan.rankedOptions[0].reason}</small>
               </> : <p>TAP found no matching place yet.</p>}
               {!needsContact && <div className="node-confirmed"><Check /> Ready to go</div>}
@@ -140,7 +177,7 @@ export function PlanningJourney({ request, user, profile, contacts, onClose }: P
               <div className="tree-connector">if Plan A cannot continue</div>
               <div className="node-top"><span className="node-letter">B</span><span className="node-state">{branch === "fallback" ? "Active fallback" : "Ready in the background"}</span></div>
               <h3>Independent ride option</h3><p>Use a rideshare while keeping the same destination.</p>
-              {branch === "fallback" && <a className="primary-button link-button" href="https://m.uber.com/" target="_blank" rel="noreferrer">Open Uber <Navigation /></a>}
+              {branch === "fallback" && <a className="primary-button link-button" href={uberLink} target="_blank" rel="noreferrer">Open Uber with destination <Navigation /></a>}
             </article>
 
             <article className="decision-node reserve">

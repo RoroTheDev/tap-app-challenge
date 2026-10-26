@@ -2,6 +2,9 @@ import {
   toPlannerProfile,
   type ConductorResponse,
   type CoordinationStatusResponse,
+  type PlanningSession,
+  type PlanningSessionPhase,
+  type PlanningSessionStatus,
   type SendContactMessageResponse,
   type SeniorProfile,
   type TrustedContact,
@@ -17,6 +20,39 @@ async function requestHeaders(user: AppUser) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(user.isDemo ? { "X-TAP-Preview": "true" } : {}),
   };
+}
+
+async function planningSessionRequest(user: AppUser, path: string, init?: RequestInit) {
+  const response = await fetch(`${apiBase}/planning-sessions${path}`, {
+    ...init,
+    headers: await requestHeaders(user),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (response.status === 404) return null;
+  const payload = await response.json().catch(() => ({})) as PlanningSession & { error?: string };
+  if (!response.ok) throw new Error(payload.error || "TAP could not save this planning session.");
+  return payload;
+}
+
+export function createPlanningSession(user: AppUser, id: string, request: string) {
+  if (user.isDemo) return Promise.resolve(null);
+  return planningSessionRequest(user, "", { method: "POST", body: JSON.stringify({ id, request }) });
+}
+
+export function readPlanningSession(user: AppUser, id: string) {
+  if (user.isDemo) return Promise.resolve(null);
+  return planningSessionRequest(user, `/${encodeURIComponent(id)}`);
+}
+
+export function updatePlanningSession(user: AppUser, id: string, update: {
+  phase?: PlanningSessionPhase;
+  status?: PlanningSessionStatus;
+  plan?: ConductorResponse | null;
+  coordinationStatus?: PlanningSession["coordinationStatus"];
+  selectedOptionRank?: number | null;
+}) {
+  if (user.isDemo) return Promise.resolve(null);
+  return planningSessionRequest(user, `/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(update) });
 }
 
 export async function requestConductorPlan(

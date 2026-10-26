@@ -6,6 +6,14 @@ import { conduct } from "./conductor.js";
 import { readConfig, type ApiConfig } from "./config.js";
 import { authenticate, loadPlannerProfile } from "./profile.js";
 import { beginCoordination, deleteCoordinationData, getCoordinationStatus, handleIncomingReply, twimlReply, validateTwilioWebhook } from "./coordination.js";
+import {
+  createPlanningSession,
+  createPlanningSessionSchema,
+  deletePlanningSessions,
+  getPlanningSession,
+  updatePlanningSession,
+  updatePlanningSessionSchema,
+} from "./planning-sessions.js";
 
 const conductorRequestSchema = z.object({ request: z.string().trim().min(2).max(500), previewProfile: z.unknown().optional() });
 const messageRequestSchema = z.object({
@@ -19,7 +27,7 @@ export function createApp(config: ApiConfig = readConfig()) {
   const app = express();
   app.disable("x-powered-by");
   app.use(helmet());
-  app.use(cors({ origin: config.webOrigin, methods: ["GET", "POST", "DELETE"], allowedHeaders: ["Content-Type", "Authorization", "X-TAP-Preview"] }));
+  app.use(cors({ origin: config.webOrigin, methods: ["GET", "POST", "PATCH", "DELETE"], allowedHeaders: ["Content-Type", "Authorization", "X-TAP-Preview"] }));
   app.use(express.json({ limit: "32kb" }));
   app.use(express.urlencoded({ extended: false, limit: "32kb" }));
 
@@ -55,6 +63,32 @@ export function createApp(config: ApiConfig = readConfig()) {
     } catch (error) { next(error); }
   });
 
+  app.post(["/planning-sessions", "/api/planning-sessions"], async (request, response, next) => {
+    try {
+      const identity = await authenticate(request, config);
+      if (identity.preview) throw Object.assign(new Error("Preview planning sessions stay in this browser."), { status: 409 });
+      const input = createPlanningSessionSchema.parse(request.body);
+      response.status(201).json(await createPlanningSession(identity.uid, input));
+    } catch (error) { next(error); }
+  });
+
+  app.get(["/planning-sessions/:id", "/api/planning-sessions/:id"], async (request, response, next) => {
+    try {
+      const identity = await authenticate(request, config);
+      if (identity.preview) throw Object.assign(new Error("Preview planning sessions stay in this browser."), { status: 409 });
+      response.json(await getPlanningSession(identity.uid, String(request.params.id)));
+    } catch (error) { next(error); }
+  });
+
+  app.patch(["/planning-sessions/:id", "/api/planning-sessions/:id"], async (request, response, next) => {
+    try {
+      const identity = await authenticate(request, config);
+      if (identity.preview) throw Object.assign(new Error("Preview planning sessions stay in this browser."), { status: 409 });
+      const input = updatePlanningSessionSchema.parse(request.body);
+      response.json(await updatePlanningSession(identity.uid, String(request.params.id), input));
+    } catch (error) { next(error); }
+  });
+
   app.get(["/coordination/:id", "/api/coordination/:id"], async (request, response, next) => {
     try {
       const identity = await authenticate(request, config);
@@ -78,7 +112,7 @@ export function createApp(config: ApiConfig = readConfig()) {
   app.delete(["/profile-data", "/api/profile-data"], async (request, response, next) => {
     try {
       const identity = await authenticate(request, config);
-      if (!identity.preview) await deleteCoordinationData(identity.uid);
+      if (!identity.preview) await Promise.all([deleteCoordinationData(identity.uid), deletePlanningSessions(identity.uid)]);
       response.status(204).send();
     } catch (error) { next(error); }
   });

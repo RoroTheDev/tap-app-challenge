@@ -145,6 +145,9 @@ export interface ActivityCandidate {
   accessibilityLabel: string;
   registrationUrl: string;
   source: "ticketmaster" | "curated";
+  sourceUrl: string;
+  lastVerifiedAt: string;
+  freshness: "live" | "verified";
   venue: PlaceCandidate;
 }
 
@@ -199,6 +202,22 @@ export type CoordinationStatus = "waiting" | "accepted" | "declined" | "timed_ou
 export interface CoordinationStatusResponse {
   id: string;
   status: CoordinationStatus;
+  expiresAt: string;
+}
+
+export type PlanningSessionPhase = "understanding" | "discovering" | "transport" | "fallbacks" | "ready";
+export type PlanningSessionStatus = "planning" | "ready" | "waiting_for_contact" | "accepted" | "fallback" | "complete" | "failed";
+
+export interface PlanningSession {
+  id: string;
+  request: string;
+  phase: PlanningSessionPhase;
+  status: PlanningSessionStatus;
+  plan: ConductorResponse | null;
+  coordinationStatus: CoordinationStatus | null;
+  selectedOptionRank: number | null;
+  createdAt: string;
+  updatedAt: string;
   expiresAt: string;
 }
 

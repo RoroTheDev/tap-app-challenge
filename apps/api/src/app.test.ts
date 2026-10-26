@@ -37,4 +37,16 @@ describe("conductor API", () => {
     expect(response.body.rankedOptions).toHaveLength(3);
     expect(response.body.steps.map((step: { tag: string }) => step.tag)).toEqual(["places", "transport", "contact", "fallback"]);
   });
+
+  it("requires authentication for persistent planning sessions", async () => {
+    await request(app).post("/api/planning-sessions").send({ request: "Find an activity" }).expect(401);
+  });
+
+  it("keeps preview planning sessions browser-local", async () => {
+    await request(app)
+      .post("/api/planning-sessions")
+      .set("X-TAP-Preview", "true")
+      .send({ request: "Find an activity" })
+      .expect(409);
+  });
 });

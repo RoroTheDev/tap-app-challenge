@@ -4,6 +4,7 @@ import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import { AuthModal } from "./components/AuthModal";
 import { Hub } from "./components/Hub";
 import { Logo } from "./components/Logo";
+import { LegalPage, type LegalDocument } from "./components/LegalPage";
 import { Onboarding } from "./components/Onboarding";
 import { PlanningJourney } from "./components/PlanningJourney";
 import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
@@ -32,7 +33,7 @@ function withTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T>
   });
 }
 
-function Landing({ openAuth, authError }: { openAuth: (mode: Exclude<AuthMode, null>) => void; authError?: string }) {
+function Landing({ openAuth, openLegal, authError }: { openAuth: (mode: Exclude<AuthMode, null>) => void; openLegal: (document: LegalDocument) => void; authError?: string }) {
   return (
     <div className="landing">
       <nav className="site-nav">
@@ -75,7 +76,7 @@ function Landing({ openAuth, authError }: { openAuth: (mode: Exclude<AuthMode, n
 
         <section className="cta-section"><div><div className="eyebrow">YOUR DAY, YOUR WAY</div><h2>Let’s make everyday plans feel possible again.</h2></div><button className="primary-button light" onClick={() => openAuth("signup")}>Create my free profile <ArrowRight /></button></section>
       </main>
-      <footer className="site-footer"><Logo /><p>Technology that brings people closer.</p><span>© 2026 TAP</span></footer>
+      <footer className="site-footer"><Logo /><p>Technology that brings people closer.</p><nav aria-label="Legal"><button className="text-button" onClick={() => openLegal("privacy")}>Privacy</button><button className="text-button" onClick={() => openLegal("terms")}>Terms</button></nav><span>© 2026 TAP</span></footer>
     </div>
   );
 }
@@ -90,6 +91,7 @@ export default function App() {
   const [loadError, setLoadError] = useState("");
   const [authError, setAuthError] = useState("");
   const [activePlan, setActivePlan] = useState<PlanSession | null>(loadActivePlan);
+  const [legalDocument, setLegalDocument] = useState<LegalDocument | null>(() => window.location.pathname === "/privacy" ? "privacy" : window.location.pathname === "/terms" ? "terms" : null);
   const hydrationSequence = useRef(0);
 
   async function hydrate(nextUser: AppUser | null) {
@@ -129,6 +131,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHistory = () => {
+      setLegalDocument(window.location.pathname === "/privacy" ? "privacy" : window.location.pathname === "/terms" ? "terms" : null);
       if (!window.location.pathname.startsWith("/plan/")) setActivePlan(null);
     };
     window.addEventListener("popstate", handleHistory);
@@ -147,6 +150,16 @@ export default function App() {
     sessionStorage.removeItem(ACTIVE_PLAN_KEY);
     window.history.replaceState({}, "", "/");
     setActivePlan(null);
+  }
+
+  function openLegal(document: LegalDocument) {
+    window.history.pushState({}, "", `/${document}`);
+    setLegalDocument(document);
+  }
+
+  function closeLegal() {
+    window.history.pushState({}, "", "/");
+    setLegalDocument(null);
   }
 
   async function handleSave(nextProfile: SeniorProfile, nextContacts: TrustedContact[]) {
@@ -178,10 +191,11 @@ export default function App() {
     setContacts([]);
   }
 
+  if (legalDocument) return <LegalPage document={legalDocument} onBack={closeLegal} onSwitch={openLegal} />;
   if (loading) return <div className="loading-screen"><Logo /><span>Getting TAP ready…</span></div>;
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
-  if (!user) return <><Landing openAuth={setAuthMode} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
+  if (!user) return <><Landing openAuth={setAuthMode} openLegal={openLegal} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
-  if (activePlan?.uid === user.uid) return <PlanningJourney request={activePlan.request} user={user} profile={profile} contacts={contacts} onClose={closePlan} />;
+  if (activePlan?.uid === user.uid) return <PlanningJourney sessionId={activePlan.id} request={activePlan.request} user={user} profile={profile} contacts={contacts} onClose={closePlan} />;
   return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} onStartPlan={startPlan} />;
 }

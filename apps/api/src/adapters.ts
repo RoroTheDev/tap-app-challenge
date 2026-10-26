@@ -11,6 +11,7 @@ import type {
   TransportOption,
 } from "@tap/shared";
 import type { ApiConfig } from "./config.js";
+import { getCuratedSeniorActivities } from "./activity-sources.js";
 
 const intentSchema = z.object({
   goal: z.string(),
@@ -133,51 +134,6 @@ function localAreaParts(area: string) {
   return { city, state: /^[A-Za-z]{2}$/.test(state) ? state.toUpperCase() : "" };
 }
 
-function curatedSeniorActivities(profile: PlannerProfile): ActivityCandidate[] {
-  if (!/fremont/i.test(profile.area)) return [];
-  const sourceUrl = "https://www.fremont.gov/government/departments/human-services/age-well-centers";
-  return [
-    {
-      id: "fremont-age-well-lake-elizabeth",
-      title: "Age Well Center classes and activities",
-      description: "Classes, fitness, social programs, workshops, and services for adults 55+ at Lake Elizabeth.",
-      startLabel: "Weekdays — check the current activity calendar",
-      costLabel: "Free and paid programs",
-      accessibilityLabel: "Contact the center to confirm support for a specific class",
-      registrationUrl: sourceUrl,
-      source: "curated",
-      venue: {
-        id: "fremont-age-well-lake-elizabeth",
-        name: "Age Well Center at Lake Elizabeth",
-        address: "40086 Paseo Padre Parkway, Fremont, CA 94538",
-        mapsUrl: "https://maps.google.com/?q=Age+Well+Center+at+Lake+Elizabeth",
-        latitude: null,
-        longitude: null,
-        source: "mock",
-      },
-    },
-    {
-      id: "fremont-age-well-south",
-      title: "South Fremont senior activities",
-      description: "Community, wellness, learning, and social activities designed for adults 55+.",
-      startLabel: "Weekdays — check the current activity calendar",
-      costLabel: "Free and paid programs",
-      accessibilityLabel: "Contact the center to confirm support for a specific class",
-      registrationUrl: sourceUrl,
-      source: "curated",
-      venue: {
-        id: "fremont-age-well-south",
-        name: "Age Well Center at South Fremont",
-        address: "47111 Mission Falls Court, Fremont, CA 94539",
-        mapsUrl: "https://maps.google.com/?q=Age+Well+Center+at+South+Fremont",
-        latitude: null,
-        longitude: null,
-        source: "mock",
-      },
-    },
-  ];
-}
-
 function eventStartLabel(start: { dateTime?: string; localDate?: string; localTime?: string } | undefined) {
   if (start?.dateTime) {
     const date = new Date(start.dateTime);
@@ -187,7 +143,7 @@ function eventStartLabel(start: { dateTime?: string; localDate?: string; localTi
 }
 
 export async function findActivities(intent: ParsedIntent, profile: PlannerProfile, config: ApiConfig) {
-  const curated = curatedSeniorActivities(profile);
+  const curated = getCuratedSeniorActivities(profile.area);
   if (intent.category !== "activity") return { value: [] as ActivityCandidate[], source: "unavailable" as const };
   if (!config.ticketmasterApiKey) return { value: curated, source: curated.length ? "curated" as const : "unavailable" as const };
   try {
@@ -233,6 +189,9 @@ export async function findActivities(intent: ParsedIntent, profile: PlannerProfi
         accessibilityLabel: accessibility?.info || "Accessibility not confirmed",
         registrationUrl: String(event.url ?? ""),
         source: "ticketmaster",
+        sourceUrl: String(event.url ?? "https://www.ticketmaster.com"),
+        lastVerifiedAt: new Date().toISOString(),
+        freshness: "live",
         venue: {
           id: `ticketmaster-${String(event.id ?? crypto.randomUUID())}`,
           name: venueName,
