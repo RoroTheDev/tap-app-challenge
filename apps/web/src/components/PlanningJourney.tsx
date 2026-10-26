@@ -5,6 +5,7 @@ import type { AppUser } from "../lib/firebase";
 import { createPlanningSession, readCoordinationStatus, readPlanningSession, requestConductorPlan, sendContactRequest, updatePlanningSession } from "../lib/conductor";
 import { activePlanBranch, getFeatureDefinition, getPhaseLabel, type PlanningPhase } from "../lib/workflow";
 import { buildUberDeepLink } from "../lib/uber";
+import { AccessibilityControls } from "./AccessibilityControls";
 import { Logo } from "./Logo";
 
 interface PlanningJourneyProps {
@@ -125,8 +126,8 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
 
   return (
     <div className="journey-shell">
-      <header className="journey-header"><Logo /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></header>
-      <main className="journey-main" aria-live="polite">
+      <header className="journey-header"><Logo /><div className="journey-header-actions"><AccessibilityControls language={profile.preferredLanguage} readTargetId="tap-journey-main" /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to TAP</button></div></header>
+      <main className="journey-main" id="tap-journey-main" aria-live="polite">
         <div className="journey-intro">
           <div className="eyebrow"><Sparkles /> TAP CONDUCTOR</div>
           <h1>{plan ? feature.label : "Building your plan"}</h1>
@@ -156,6 +157,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
                 {primaryActivity && <><p><Ticket /> {primaryActivity.costLabel}</p><p><Accessibility /> {primaryActivity.accessibilityLabel}</p>{primaryActivity.registrationUrl && <a className="event-link" href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">View official details</a>}</>}
                 {primaryActivity && <span className="source-freshness"><Check /> {primaryActivity.source === "ticketmaster" ? "Live Ticketmaster listing" : "Verified local senior program"} · checked {new Date(primaryActivity.lastVerifiedAt).toLocaleDateString()}</span>}
                 <small>{plan.rankedOptions[0].reason}</small>
+                <div className="primary-plan-actions"><strong>Your next step</strong><a className="primary-button link-button" href={plan.rankedOptions[0].place.mapsUrl} target="_blank" rel="noreferrer">Open directions <Navigation /></a></div>
               </> : <p>TAP found no matching place yet.</p>}
               {!needsContact && <div className="node-confirmed"><Check /> Ready to go</div>}
               {needsContact && branch === "primary" && <div className="node-confirmed"><Check /> Help accepted — Plan A is confirmed</div>}

@@ -3,6 +3,7 @@ import { ArrowRight, Check, CircleUserRound, MapPin, Mic, Send, Square, Users } 
 import type { SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
 import { getHubCopy, getTextDirection, speechLocales } from "../lib/localization";
+import { AccessibilityControls } from "./AccessibilityControls";
 import { Logo } from "./Logo";
 
 interface SpeechRecognitionResultLike { 0: { transcript: string }; }
@@ -104,13 +105,14 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
       <header className="hub-header">
         <Logo />
         <div className="hub-account">
+          <AccessibilityControls language={profile.preferredLanguage} readTargetId="tap-hub-main" />
           <span>{profile.preferredLanguage}</span>
           <button className="nav-link" onClick={onEdit}><CircleUserRound /> {copy.editProfile}</button>
           <button className="nav-link" onClick={onLogout}>{copy.logout}</button>
         </div>
       </header>
 
-      <main className="hub-main">
+      <main className="hub-main" id="tap-hub-main">
         <section className="hub-welcome">
           <div className="eyebrow"><Check /> {copy.profileReady}</div>
           <h1>{copy.greeting}, {firstName}.</h1>
@@ -120,7 +122,7 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
           <section className="request-card">
             <div className="request-heading"><div><h2>{copy.askTitle}</h2><p>{copy.askBody}</p></div><span className="voice-language"><Mic /> {profile.preferredLanguage}</span></div>
             <label className="sr-only" htmlFor="tap-request">{copy.askTitle}</label>
-            <textarea id="tap-request" value={request} onChange={(event) => setRequest(event.target.value)} placeholder={copy.placeholder} maxLength={500} />
+            <textarea id="tap-request" value={request} onChange={(event) => setRequest(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") submitRequest(); }} placeholder={copy.placeholder} maxLength={500} />
             <div className="request-actions">
               <button type="button" className={`voice-button ${listening ? "listening" : ""}`} onClick={listening ? stopListening : startListening} aria-pressed={listening}>
                 {listening ? <Square /> : <Mic />} {listening ? copy.stop : copy.listen}
@@ -128,6 +130,7 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
               <button type="button" className="primary-button" onClick={submitRequest}>{copy.makePlan} <Send /></button>
             </div>
             {message && <div className="form-guidance" role="status">{message}</div>}
+            <p className="keyboard-hint">Tip: press Ctrl + Enter to make your plan.</p>
             <div className="quick-starts"><strong>{copy.quickTitle}</strong><div>{copy.quickRequests.map((item) => <button type="button" key={item} onClick={() => { setRequest(item); setMessage(""); }}>{item} <ArrowRight /></button>)}</div></div>
           </section>
 

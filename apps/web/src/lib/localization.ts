@@ -51,7 +51,7 @@ const english: HubCopy = {
   stop: "Stop listening",
   makePlan: "Make my plan",
   quickTitle: "Or start with one of these",
-  quickRequests: ["I want to go shopping", "Help me plan an appointment", "I want to visit a friend"],
+  quickRequests: ["Find something fun to do nearby", "I want to go shopping", "Help me plan an appointment", "I want to visit a friend"],
   planTitle: "Your plan",
   planIntro: "TAP organized your request into a few clear steps.",
   places: "Find the best options",
@@ -109,8 +109,20 @@ export const speechLocales: Record<string, string> = {
   Vietnamese: "vi-VN", Korean: "ko-KR", Arabic: "ar-SA", Hindi: "hi-IN",
 };
 
+const activityQuickRequest: Record<string, string> = {
+  Spanish: "Busca algo divertido para hacer cerca",
+  Chinese: "查找附近有趣的活动",
+  Tagalog: "Maghanap ng masayang gawain sa malapit",
+  Vietnamese: "Tìm hoạt động thú vị ở gần đây",
+  Korean: "근처에서 재미있는 활동을 찾아 주세요",
+  Arabic: "ابحث عن نشاط ممتع قريب",
+  Hindi: "आस-पास कोई मज़ेदार गतिविधि खोजें",
+};
+
 export function getHubCopy(language: SeniorProfile["preferredLanguage"]): HubCopy {
-  return { ...english, ...(copies[language] ?? {}) };
+  const copy = { ...english, ...(copies[language] ?? {}) };
+  const activityRequest = activityQuickRequest[language];
+  return activityRequest ? { ...copy, quickRequests: [activityRequest, ...copy.quickRequests] } : copy;
 }
 
 export function getTextDirection(language: string) {
