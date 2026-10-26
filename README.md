@@ -17,6 +17,10 @@ Live app: <https://congressapp-849ff.web.app>
 - A personalized main hub that follows the member's saved language
 - Typed requests, browser speech recognition, quick starts, OpenAI structured
   intent tags, Google Places/Routes adapters, and ranked fallback options
+- A dedicated, resumable planning-session page with visible conductor stages
+  and an executable Plan A → contact checkpoint → Plan B → Plan C decision tree
+- Data-driven feature definitions so shopping, activities, appointments, social
+  plans, errands, and future discovery tools share one orchestration engine
 - Explicit trusted-contact confirmation, WhatsApp delivery, signed inbound
   webhook validation, bounded YES/NO waiting, and Uber handoff after a decline
   or timeout

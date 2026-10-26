@@ -5,11 +5,22 @@ import { AuthModal } from "./components/AuthModal";
 import { Hub } from "./components/Hub";
 import { Logo } from "./components/Logo";
 import { Onboarding } from "./components/Onboarding";
+import { PlanningJourney } from "./components/PlanningJourney";
 import { deleteProfile, loadProfile, logOut, observeUser, saveProfile, type AppUser } from "./lib/firebase";
 import { deleteConductorData } from "./lib/conductor";
 
 type AuthMode = "login" | "signup" | null;
+interface PlanSession { id: string; request: string; uid: string; }
 const PROFILE_LOAD_TIMEOUT_MS = 15_000;
+const ACTIVE_PLAN_KEY = "tap.active-plan";
+
+function loadActivePlan(): PlanSession | null {
+  if (!window.location.pathname.startsWith("/plan/")) return null;
+  try {
+    const value = JSON.parse(sessionStorage.getItem(ACTIVE_PLAN_KEY) ?? "null") as PlanSession | null;
+    return value?.id && value.request && value.uid ? value : null;
+  } catch { return null; }
+}
 
 function withTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -78,6 +89,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [authError, setAuthError] = useState("");
+  const [activePlan, setActivePlan] = useState<PlanSession | null>(loadActivePlan);
   const hydrationSequence = useRef(0);
 
   async function hydrate(nextUser: AppUser | null) {
@@ -115,6 +127,28 @@ export default function App() {
     },
   ), []);
 
+  useEffect(() => {
+    const handleHistory = () => {
+      if (!window.location.pathname.startsWith("/plan/")) setActivePlan(null);
+    };
+    window.addEventListener("popstate", handleHistory);
+    return () => window.removeEventListener("popstate", handleHistory);
+  }, []);
+
+  function startPlan(request: string) {
+    if (!user) return;
+    const session = { id: crypto.randomUUID(), request, uid: user.uid };
+    sessionStorage.setItem(ACTIVE_PLAN_KEY, JSON.stringify(session));
+    window.history.pushState({ tapPlanId: session.id }, "", `/plan/${session.id}`);
+    setActivePlan(session);
+  }
+
+  function closePlan() {
+    sessionStorage.removeItem(ACTIVE_PLAN_KEY);
+    window.history.replaceState({}, "", "/");
+    setActivePlan(null);
+  }
+
   async function handleSave(nextProfile: SeniorProfile, nextContacts: TrustedContact[]) {
     await saveProfile(nextProfile, nextContacts);
     setProfile(nextProfile);
@@ -125,6 +159,7 @@ export default function App() {
   async function handleLogout() {
     setLoading(true);
     try {
+      closePlan();
       await logOut();
       await hydrate(null);
     } catch {
@@ -138,6 +173,7 @@ export default function App() {
     await deleteConductorData(user);
     await deleteProfile(user.uid);
     sessionStorage.removeItem(`tap.onboarding-draft.${user.uid}`);
+    closePlan();
     setProfile(null);
     setContacts([]);
   }
@@ -146,5 +182,6 @@ export default function App() {
   if (loadError) return <div className="loading-screen error-state"><Logo /><p role="alert">{loadError}</p><div><button className="primary-button" onClick={() => void hydrate(user)}>Try again</button><button className="secondary-button" onClick={() => void handleLogout()}>Log out</button></div></div>;
   if (!user) return <><Landing openAuth={setAuthMode} authError={authError} />{authMode && <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} onSuccess={(nextUser) => { setAuthMode(null); void hydrate(nextUser); }} />}</>;
   if (!profile?.onboardingComplete || editing) return <Onboarding user={user} initialProfile={profile} initialContacts={contacts} onSave={handleSave} />;
-  return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} />;
+  if (activePlan?.uid === user.uid) return <PlanningJourney request={activePlan.request} user={user} profile={profile} contacts={contacts} onClose={closePlan} />;
+  return <Hub user={user} profile={profile} contacts={contacts} onEdit={() => setEditing(true)} onLogout={() => void handleLogout()} onDelete={handleDelete} onStartPlan={startPlan} />;
 }
