@@ -6,19 +6,21 @@ import { getHubCopy, getTextDirection, speechLocales } from "../lib/localization
 import { AccessibilityControls } from "./AccessibilityControls";
 import { Logo } from "./Logo";
 
-interface SpeechRecognitionResultLike { 0: { transcript: string }; }
-interface SpeechRecognitionEventLike { results: ArrayLike<SpeechRecognitionResultLike>; }
+interface SpeechRecognitionResultLike { 0: { transcript: string }; isFinal?: boolean; }
+interface SpeechRecognitionEventLike { resultIndex?: number; results: ArrayLike<SpeechRecognitionResultLike>; }
 interface SpeechRecognitionErrorLike { error: string; }
 interface SpeechRecognitionLike {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   onstart: (() => void) | null;
   onend: (() => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
   start(): void;
   stop(): void;
+  abort?(): void;
 }
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
@@ -45,11 +47,15 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
   const copy = useMemo(() => getHubCopy(profile.preferredLanguage), [profile.preferredLanguage]);
   const [request, setRequest] = useState("");
   const [listening, setListening] = useState(false);
+  const [startingVoice, setStartingVoice] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const recognition = useRef<SpeechRecognitionLike | null>(null);
+  const recognitionSession = useRef(0);
+  const speechBase = useRef("");
+  const speechSegments = useRef<string[]>([]);
   const firstName = profile.displayName.trim().split(/\s+/)[0] || user.displayName;
 
   useEffect(() => {
@@ -58,34 +64,96 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
     document.documentElement.lang = (speechLocales[profile.preferredLanguage] ?? "en-US").split("-")[0];
     document.documentElement.dir = getTextDirection(profile.preferredLanguage);
     return () => {
-      recognition.current?.stop();
+      recognitionSession.current += 1;
+      recognition.current?.abort?.();
+      recognition.current = null;
       document.documentElement.lang = previousLanguage || "en";
       document.documentElement.dir = previousDirection;
     };
   }, [profile.preferredLanguage]);
 
-  function startListening() {
+  function voiceErrorMessage(code: string) {
+    if (code === "not-allowed" || code === "service-not-allowed") return copy.voicePermission;
+    if (code === "no-speech") return copy.voiceNoSpeech;
+    if (code === "audio-capture") return copy.voiceMicrophone;
+    if (code === "network") return copy.voiceNetwork;
+    return copy.voiceError;
+  }
+
+  async function startListening() {
     setMessage("");
     const Recognition = recognitionConstructor();
     if (!Recognition) { setMessage(copy.voiceUnavailable); return; }
+    const session = ++recognitionSession.current;
+    setStartingVoice(true);
+    setMessage(copy.voiceStarting);
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        permissionStream.getTracks().forEach((track) => track.stop());
+      } catch (error) {
+        if (session !== recognitionSession.current) return;
+        const name = error instanceof DOMException ? error.name : "";
+        setMessage(name === "NotAllowedError" || name === "SecurityError" ? copy.voicePermission : copy.voiceMicrophone);
+        setStartingVoice(false);
+        return;
+      }
+    }
+    if (session !== recognitionSession.current) return;
+    recognition.current?.abort?.();
     const nextRecognition = new Recognition();
     recognition.current = nextRecognition;
+    speechBase.current = request.trim();
+    speechSegments.current = [];
+    let heardSpeech = false;
+    let failed = false;
     nextRecognition.lang = speechLocales[profile.preferredLanguage] ?? navigator.language ?? "en-US";
     nextRecognition.continuous = false;
-    nextRecognition.interimResults = false;
-    nextRecognition.onstart = () => setListening(true);
-    nextRecognition.onend = () => setListening(false);
-    nextRecognition.onerror = () => { setListening(false); setMessage(copy.voiceError); };
-    nextRecognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? "";
-      if (transcript) setRequest(transcript);
+    nextRecognition.interimResults = true;
+    nextRecognition.maxAlternatives = 1;
+    nextRecognition.onstart = () => {
+      if (session !== recognitionSession.current) return;
+      setStartingVoice(false);
+      setListening(true);
+      setMessage("");
     };
-    try { nextRecognition.start(); } catch { setMessage(copy.voiceError); }
+    nextRecognition.onend = () => {
+      if (session !== recognitionSession.current) return;
+      recognition.current = null;
+      setStartingVoice(false);
+      setListening(false);
+      if (!heardSpeech && !failed) setMessage(copy.voiceNoSpeech);
+    };
+    nextRecognition.onerror = (event) => {
+      if (session !== recognitionSession.current || event.error === "aborted") return;
+      failed = true;
+      setStartingVoice(false);
+      setListening(false);
+      setMessage(voiceErrorMessage(event.error));
+    };
+    nextRecognition.onresult = (event) => {
+      if (session !== recognitionSession.current) return;
+      for (let index = event.resultIndex ?? 0; index < event.results.length; index += 1) {
+        speechSegments.current[index] = event.results[index]?.[0]?.transcript?.trim() ?? "";
+      }
+      const transcript = speechSegments.current.filter(Boolean).join(" ").trim();
+      if (!transcript) return;
+      heardSpeech = true;
+      setRequest([speechBase.current, transcript].filter(Boolean).join(" "));
+      setMessage("");
+    };
+    try {
+      nextRecognition.start();
+    } catch {
+      failed = true;
+      setStartingVoice(false);
+      setListening(false);
+      setMessage(copy.voiceError);
+    }
   }
 
   function stopListening() {
     recognition.current?.stop();
-    setListening(false);
   }
 
   function submitRequest() {
@@ -124,8 +192,8 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
             <label className="sr-only" htmlFor="tap-request">{copy.askTitle}</label>
             <textarea id="tap-request" value={request} onChange={(event) => setRequest(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") submitRequest(); }} placeholder={copy.placeholder} maxLength={500} />
             <div className="request-actions">
-              <button type="button" className={`voice-button ${listening ? "listening" : ""}`} onClick={listening ? stopListening : startListening} aria-pressed={listening}>
-                {listening ? <Square /> : <Mic />} {listening ? copy.stop : copy.listen}
+              <button type="button" className={`voice-button ${listening ? "listening" : ""}`} disabled={startingVoice} onClick={listening ? stopListening : () => void startListening()} aria-pressed={listening}>
+                {listening ? <Square /> : <Mic />} {startingVoice ? copy.voiceStarting : listening ? copy.stop : copy.listen}
               </button>
               <button type="button" className="primary-button" onClick={submitRequest}>{copy.makePlan} <Send /></button>
             </div>

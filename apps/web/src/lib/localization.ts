@@ -28,6 +28,11 @@ export interface HubCopy {
   profileReady: string;
   voiceUnavailable: string;
   voiceError: string;
+  voiceStarting: string;
+  voicePermission: string;
+  voiceNoSpeech: string;
+  voiceMicrophone: string;
+  voiceNetwork: string;
   typeRequest: string;
   newRequest: string;
   trustedOne: string;
@@ -68,6 +73,11 @@ const english: HubCopy = {
   profileReady: "Personalized for you",
   voiceUnavailable: "Voice input is not available in this browser. You can still type your request.",
   voiceError: "I couldn't hear that clearly. Please try again or type your request.",
+  voiceStarting: "Getting the microphone ready…",
+  voicePermission: "Cue needs microphone permission. Allow microphone access in your browser, then try again.",
+  voiceNoSpeech: "I didn't hear any words. Tap Speak and try again.",
+  voiceMicrophone: "Cue could not access a microphone. Check that your microphone is connected and available.",
+  voiceNetwork: "Voice recognition could not connect. Check your connection or type your request.",
   typeRequest: "Please tell Cue what you would like help with.",
   newRequest: "Start a new request",
   trustedOne: "trusted person",
@@ -80,7 +90,7 @@ const english: HubCopy = {
   deleteError: "Your profile could not be deleted yet. Please try again.",
 };
 
-const copies: Record<string, HubCopy> = {
+const copies: Record<string, Partial<HubCopy>> = {
   Spanish: {
     greeting: "Qué gusto verte", subtitle: "¿Qué haría tu día un poco más fácil?", askTitle: "Dile a Cue lo que necesitas", askBody: "Habla con naturalidad o escribe una solicitud. Cue organizará los próximos pasos.", placeholder: "Por ejemplo: Quiero ir de compras esta tarde…", listen: "Hablar", listening: "Escuchando…", stop: "Dejar de escuchar", makePlan: "Crear mi plan", quickTitle: "O comienza con una opción", quickRequests: ["Quiero ir de compras", "Ayúdame a planear una cita", "Quiero visitar a un amigo"], planTitle: "Tu plan", planIntro: "Cue organizó tu solicitud en pasos claros.", places: "Encontrar las mejores opciones", placesDetail: "Buscar opciones cercanas que coincidan con tus preferencias y horario.", transport: "Revisar cómo llegar", transportDetail: "Comparar las formas de transporte que te resultan cómodas.", contact: "Preparar ayuda de un contacto", contactDetail: "Preparar un mensaje y enviarlo solamente después de tu aprobación.", fallback: "Tener alternativas listas", fallbackDetail: "Si la primera opción no funciona, mostrar la siguiente mejor.", confirmNote: "Nada se reserva, comparte ni envía sin tu aprobación.", editProfile: "Perfil", logout: "Cerrar sesión", profileReady: "Personalizado para ti", voiceUnavailable: "La entrada por voz no está disponible en este navegador. Aún puedes escribir.", voiceError: "No pude oírte con claridad. Inténtalo de nuevo o escribe tu solicitud.", typeRequest: "Dile a Cue con qué necesitas ayuda.", newRequest: "Empezar otra solicitud", trustedOne: "persona de confianza", trustedMany: "personas de confianza", deleteData: "Eliminar datos del perfil", deleteQuestion: "¿Eliminar todas las respuestas guardadas?", cancel: "Cancelar", delete: "Eliminar", deleting: "Eliminando…", deleteError: "No pudimos eliminar tu perfil. Inténtalo de nuevo.",
   },
