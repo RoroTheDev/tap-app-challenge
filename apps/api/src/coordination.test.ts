@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 import twilio from "twilio";
-import { interpretCoordinationReply, validateTwilioWebhook } from "./coordination.js";
+import { interpretCoordinationReply, normalizePhone, validateTwilioWebhook } from "./coordination.js";
 import { readConfig } from "./config.js";
 
 describe("coordination reply parser", () => {
+  it("normalizes common US phone formats for Twilio", () => {
+    expect(normalizePhone("(415) 555-0123")).toBe("+14155550123");
+    expect(normalizePhone("+1 415 555 0123")).toBe("+14155550123");
+  });
+
+  it("rejects an invalid trusted-contact number", () => {
+    expect(() => normalizePhone("123")).toThrow("not valid");
+  });
+
   it.each(["YES", "yes I can", "Accept", "1"])("accepts %s", (reply) => {
     expect(interpretCoordinationReply(reply)).toBe("accepted");
   });

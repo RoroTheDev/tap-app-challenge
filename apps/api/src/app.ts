@@ -3,9 +3,10 @@ import express, { type NextFunction, type Request, type Response } from "express
 import helmet from "helmet";
 import { z } from "zod";
 import { conduct } from "./conductor.js";
+import { messagingMode } from "./adapters.js";
 import { readConfig, type ApiConfig } from "./config.js";
 import { authenticate, loadPlannerProfile } from "./profile.js";
-import { beginCoordination, deleteCoordinationData, getCoordinationStatus, handleIncomingReply, twimlReply, validateTwilioWebhook } from "./coordination.js";
+import { beginCoordination, deleteCoordinationData, getCoordinationStatus, handleDeliveryStatus, handleIncomingReply, twimlReply, validateTwilioWebhook } from "./coordination.js";
 import {
   createPlanningSession,
   createPlanningSessionSchema,
@@ -32,7 +33,12 @@ export function createApp(config: ApiConfig = readConfig()) {
   app.use(express.urlencoded({ extended: false, limit: "32kb" }));
 
   app.get(["/health", "/api/health"], (_request, response) => {
-    response.json({ ok: true, mocksAllowed: config.allowMocks });
+    response.json({
+      ok: true,
+      mocksAllowed: config.allowMocks,
+      messaging: messagingMode(config),
+      messagingChannel: config.twilioChannel,
+    });
   });
 
   app.post(["/conductor", "/api/conductor"], async (request, response, next) => {
@@ -106,6 +112,18 @@ export function createApp(config: ApiConfig = readConfig()) {
       }
       const result = await handleIncomingReply(parameters.From ?? "", parameters.Body ?? "");
       response.type("text/xml").send(twimlReply(result.reply));
+    } catch (error) { next(error); }
+  });
+
+  app.post(["/twilio/status", "/api/twilio/status"], async (request, response, next) => {
+    try {
+      const parameters = Object.fromEntries(Object.entries(request.body as Record<string, unknown>).map(([key, value]) => [key, String(value)]));
+      if (!validateTwilioWebhook(request.header("x-twilio-signature") ?? "", parameters, config, config.twilioStatusCallbackUrl)) {
+        response.status(403).type("text/plain").send("Invalid Twilio signature.");
+        return;
+      }
+      await handleDeliveryStatus(parameters.MessageSid ?? "", (parameters.MessageStatus ?? "").toLowerCase(), parameters.ErrorCode ?? "");
+      response.status(204).send();
     } catch (error) { next(error); }
   });
 

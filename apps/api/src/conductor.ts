@@ -23,7 +23,7 @@ function alternateGoal(category: ConductorResponse["intent"]["category"]) {
 
 export async function conduct(request: string, profile: PlannerProfile, config: ApiConfig): Promise<ConductorResponse> {
   const parsed = await parseIntent(request, profile, config);
-  const [places, activities, fallbackOptions, contactDraft] = await Promise.all([
+  const [places, activities, fallbackOptions] = await Promise.all([
     findPlaces(parsed.value, profile, config),
     findActivities(parsed.value, profile, config),
     Promise.resolve([
@@ -31,9 +31,6 @@ export async function conduct(request: string, profile: PlannerProfile, config: 
       "Choose a different travel mode or time.",
       profile.trustedContactAvailable ? "Ask your trusted contact for help." : "Try again with a broader nearby search.",
     ]),
-    Promise.resolve(profile.trustedContactAvailable
-      ? `Hi, ${profile.firstName} would like help with this plan: ${parsed.value.goal}. Are you available to help coordinate?`
-      : ""),
   ]);
 
   const planPlaces = parsed.value.category === "activity" && activities.value.length
@@ -66,6 +63,20 @@ export async function conduct(request: string, profile: PlannerProfile, config: 
     }));
 
   const messageMode = messagingMode(config);
+  const primaryOption = rankedOptions[0];
+  const primaryActivity = primaryOption ? activityByVenue.get(primaryOption.place.id) : undefined;
+  const contactDraft = profile.trustedContactAvailable && primaryOption
+    ? [
+      `Hi, ${profile.firstName} would like help with this plan: ${parsed.value.goal}.`,
+      `Best option: ${primaryActivity?.title ?? primaryOption.place.name}`,
+      primaryActivity?.startLabel ? `When: ${primaryActivity.startLabel}` : "",
+      `Place: ${primaryOption.place.name}`,
+      `Address: ${primaryOption.place.address}`,
+      `Travel estimate: ${primaryOption.transport.durationMinutes} minutes ${primaryOption.transport.mode.toLowerCase()}.`,
+      `Directions: ${primaryOption.place.mapsUrl}`,
+      "Are you available to help coordinate?",
+    ].filter(Boolean).join("\n")
+    : "";
   const steps: ConductorResponse["steps"] = parsed.value.tags.map((tag) => {
     if (tag === "places") return {
       tag,

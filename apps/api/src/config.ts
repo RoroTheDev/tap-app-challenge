@@ -9,6 +9,7 @@ export interface ApiConfig {
   twilioWhatsappFrom: string;
   twilioChannel: "sms" | "whatsapp";
   twilioWebhookUrl: string;
+  twilioStatusCallbackUrl: string;
   webOrigin: string;
   allowMocks: boolean;
   port: number;
@@ -26,6 +27,7 @@ export function readConfig(environment: NodeJS.ProcessEnv = process.env): ApiCon
     twilioWhatsappFrom: environment.TWILIO_WHATSAPP_FROM?.trim() || "whatsapp:+14155238886",
     twilioChannel: environment.TWILIO_CHANNEL === "sms" ? "sms" : "whatsapp",
     twilioWebhookUrl: environment.TWILIO_WEBHOOK_URL?.trim() || "https://congressapp-849ff.web.app/api/twilio/incoming",
+    twilioStatusCallbackUrl: environment.TWILIO_STATUS_CALLBACK_URL?.trim() || "https://congressapp-849ff.web.app/api/twilio/status",
     webOrigin:
       environment.WEB_ORIGIN?.trim() ||
       (environment.K_SERVICE ? "https://congressapp-849ff.web.app" : "http://localhost:5173"),

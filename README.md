@@ -205,6 +205,7 @@ For the WhatsApp Sandbox, configure the server with:
 TWILIO_CHANNEL=whatsapp
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 TWILIO_WEBHOOK_URL=https://congressapp-849ff.web.app/api/twilio/incoming
+TWILIO_STATUS_CALLBACK_URL=https://congressapp-849ff.web.app/api/twilio/status
 ```
 
 In Twilio Sandbox settings, set **When a message comes in** to the same webhook

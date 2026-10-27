@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Accessibility, ArrowLeft, CalendarDays, Check, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Sparkles, Ticket } from "lucide-react";
+import { Accessibility, ArrowLeft, CalendarDays, Check, Clock3, MapPin, MessageCircle, Navigation, RotateCcw, Send, Share2, Sparkles, Ticket } from "lucide-react";
 import type { ConductorResponse, CoordinationStatus, SeniorProfile, TrustedContact } from "@tap/shared";
 import type { AppUser } from "../lib/firebase";
 import { createPlanningSession, readCoordinationStatus, readPlanningSession, requestConductorPlan, sendContactRequest, updatePlanningSession } from "../lib/conductor";
 import { activePlanBranch, getFeatureDefinition, getPhaseLabel, type PlanningPhase } from "../lib/workflow";
 import { buildUberDeepLink } from "../lib/uber";
+import { buildSharePlanData, sharePlan } from "../lib/share-plan";
 import { Logo } from "./Logo";
 
 interface PlanningJourneyProps {
@@ -54,6 +55,7 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
   const [contactReview, setContactReview] = useState(false);
   const [contactBusy, setContactBusy] = useState(false);
   const [contactError, setContactError] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
   const [coordination, setCoordination] = useState<{ id: string; status: CoordinationStatus; expiresAt: string } | null>(null);
   const primaryContact = contacts.find((contact) => contact.isPrimary && contact.permissionConfirmed && contact.canReceiveSms)
     ?? contacts.find((contact) => contact.permissionConfirmed && contact.canReceiveSms);
@@ -181,6 +183,19 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
     void updatePlanningSession(user, sessionId, { coordinationStatus: "declined", coordinationId: "manual-fallback", coordinationExpiresAt: new Date().toISOString(), status: "fallback", selectedOptionRank: 2 }).catch(() => undefined);
   }
 
+  async function sharePrimaryOption() {
+    const option = plan?.rankedOptions[0];
+    if (!option) return;
+    setShareStatus("");
+    try {
+      const result = await sharePlan(buildSharePlanData(option, primaryActivity));
+      if (result === "copied") setShareStatus("Plan copied. You can paste it into a message.");
+      if (result === "shared") setShareStatus("Plan shared.");
+    } catch {
+      setShareStatus("Cue couldn't open sharing. Use the directions link instead.");
+    }
+  }
+
   return (
     <div className="journey-shell">
       <header className="journey-header"><Logo /><button className="nav-link" onClick={onClose}><ArrowLeft /> Back to Cue</button></header>
@@ -215,6 +230,8 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
                 {primaryActivity && <span><Ticket /> {primaryActivity.costLabel}</span>}
               </div>
               {primaryActivity && <div className="spotlight-notes"><span><Accessibility /> {primaryActivity.accessibilityLabel}</span>{primaryActivity.registrationUrl && <a href={primaryActivity.registrationUrl} target="_blank" rel="noreferrer">Official details</a>}</div>}
+              <button type="button" className="share-plan-button" onClick={() => void sharePrimaryOption()}><Share2 /> Share this option</button>
+              {shareStatus && <span className="share-status" role="status">{shareStatus}</span>}
             </> : <p>Cue found no matching place yet.</p>}
           </article>
 

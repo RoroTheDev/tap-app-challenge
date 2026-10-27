@@ -8,9 +8,13 @@ import { adminReady } from "./profile.js";
 
 const CONFIRMATION_WINDOW_MS = 2 * 60 * 1000;
 
-function normalizePhone(phone: string) {
+export function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
-  return digits.length === 10 ? `+1${digits}` : `+${digits}`;
+  const normalized = digits.length === 10 ? `1${digits}` : digits;
+  if (normalized.length < 11 || normalized.length > 15) {
+    throw Object.assign(new Error("The trusted contact phone number is not valid."), { status: 400 });
+  }
+  return `+${normalized}`;
 }
 
 function contactHash(phone: string) {
@@ -59,7 +63,7 @@ export async function beginCoordination(
   await batch.commit();
 
   try {
-    const delivery = await sendText(contact.phone, `${body}\n\nReply YES to accept or NO to decline.`, config);
+    const delivery = await sendText(normalizePhone(contact.phone), `${body}\n\nReply YES to accept or NO to decline.`, config);
     await requestRef.update({ messageId: delivery.messageId, updatedAt: FieldValue.serverTimestamp() });
     return { ...delivery, confirmationId: id, status: "waiting" as const, expiresAt: expiresAtDate.toISOString() };
   } catch (error) {
@@ -86,13 +90,30 @@ export async function getCoordinationStatus(id: string, uid: string): Promise<Co
   return { id, status, expiresAt: expiresAt.toDate().toISOString() };
 }
 
-export function validateTwilioWebhook(signature: string, parameters: Record<string, string>, config: ApiConfig) {
+export function validateTwilioWebhook(signature: string, parameters: Record<string, string>, config: ApiConfig, url = config.twilioWebhookUrl) {
   return Boolean(config.twilioAuthToken && signature && twilio.validateRequest(
     config.twilioAuthToken,
     signature,
-    config.twilioWebhookUrl,
+    url,
     parameters,
   ));
+}
+
+export async function handleDeliveryStatus(messageSid: string, messageStatus: string, errorCode = "") {
+  adminReady();
+  const db = getFirestore();
+  const requests = await db.collection("coordinationRequests").where("messageId", "==", messageSid).limit(1).get();
+  if (requests.empty) return { handled: false };
+  const request = requests.docs[0];
+  const terminalFailure = messageStatus === "failed" || messageStatus === "undelivered";
+  await request.ref.update({
+    deliveryStatus: messageStatus,
+    ...(errorCode ? { deliveryErrorCode: errorCode } : {}),
+    ...(terminalFailure ? { status: "failed" } : {}),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  if (terminalFailure) await db.doc(`coordinationByContact/${String(request.data().contactHash)}`).delete();
+  return { handled: true };
 }
 
 export function interpretCoordinationReply(body: string): "accepted" | "declined" | null {

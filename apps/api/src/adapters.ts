@@ -293,10 +293,23 @@ export async function sendText(to: string, body: string, config: ApiConfig) {
   if (messagingMode(config) !== "twilio") return { sent: false, simulated: true, messageId: `simulated-${Date.now()}` };
   const client = twilio(config.twilioAccountSid, config.twilioAuthToken);
   const whatsappTo = `whatsapp:${to.replace(/^whatsapp:/, "")}`;
-  const message = await client.messages.create({
-    to: config.twilioChannel === "whatsapp" ? whatsappTo : to,
-    from: config.twilioChannel === "whatsapp" ? config.twilioWhatsappFrom : config.twilioPhoneNumber,
-    body,
-  });
-  return { sent: true, simulated: false, messageId: message.sid };
+  try {
+    const message = await client.messages.create({
+      to: config.twilioChannel === "whatsapp" ? whatsappTo : to,
+      from: config.twilioChannel === "whatsapp" ? config.twilioWhatsappFrom : config.twilioPhoneNumber,
+      body,
+      statusCallback: config.twilioStatusCallbackUrl,
+    });
+    return { sent: true, simulated: false, messageId: message.sid };
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? Number(error.code) : 0;
+    const message = code === 63015
+      ? "This contact must join the Cue WhatsApp Sandbox again before Cue can message them."
+      : code === 63016
+        ? "The WhatsApp conversation window has expired. Ask the contact to message the Sandbox, then try again."
+        : code === 21211
+          ? "The trusted contact phone number is not valid. Update the profile and try again."
+          : "Twilio could not send this message. Check the sender and recipient setup, then try again.";
+    throw Object.assign(new Error(message), { status: 502, cause: error });
+  }
 }
