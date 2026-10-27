@@ -81,8 +81,17 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
     ];
     void (async () => {
       try {
-        const existing = await readPlanningSession(user, sessionId);
+        // A cold Firebase function can make persistence slow on the first run.
+        // Start the actual plan immediately and treat session restore/save as
+        // best-effort so it can never block the user-facing result.
+        const existingPromise = readPlanningSession(user, sessionId).catch(() => null);
+        const planPromise = requestConductorPlan(request, user, profile, contacts);
+        const existing = await Promise.race([
+          existingPromise,
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1_200)),
+        ]);
         if (existing?.plan) {
+          void planPromise.catch(() => undefined);
           timers.forEach(window.clearTimeout);
           if (!stopped) {
             setPlan(existing.plan);
@@ -95,8 +104,8 @@ export function PlanningJourney({ sessionId, request, user, profile, contacts, o
           }
           return;
         }
-        if (!existing) await createPlanningSession(user, sessionId, request);
-        const result = await requestConductorPlan(request, user, profile, contacts);
+        if (!existing) void createPlanningSession(user, sessionId, request).catch(() => undefined);
+        const result = await planPromise;
         if (stopped) return;
         timers.forEach(window.clearTimeout);
         setPlan(result);

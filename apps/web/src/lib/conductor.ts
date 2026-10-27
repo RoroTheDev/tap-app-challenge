@@ -63,18 +63,35 @@ export async function requestConductorPlan(
   profile: SeniorProfile,
   contacts: TrustedContact[],
 ): Promise<ConductorResponse> {
-  const response = await fetch(`${apiBase}/conductor`, {
-    method: "POST",
-    headers: await requestHeaders(user),
-    body: JSON.stringify({
-      request,
-      ...(user.isDemo ? { previewProfile: toPlannerProfile(profile, contacts) } : {}),
-    }),
-    signal: AbortSignal.timeout(65_000),
-  });
-  const payload = await response.json().catch(() => ({})) as ConductorResponse & { error?: string };
-  if (!response.ok) throw new Error(payload.error || "Cue could not prepare the plan.");
-  return payload;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase}/conductor`, {
+        method: "POST",
+        headers: await requestHeaders(user),
+        body: JSON.stringify({
+          request,
+          ...(user.isDemo ? { previewProfile: toPlannerProfile(profile, contacts) } : {}),
+        }),
+        signal: AbortSignal.timeout(65_000),
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt > 0) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      continue;
+    }
+
+    const payload = await response.json().catch(() => ({})) as ConductorResponse & { error?: string };
+    if (response.ok) return payload;
+    const error = new Error(payload.error || "Cue could not prepare the plan.");
+    if (response.status < 500 && response.status !== 429) throw error;
+    lastError = error;
+    if (attempt > 0) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 450));
+  }
+  throw lastError instanceof Error ? lastError : new Error("Cue could not prepare the plan.");
 }
 
 export async function sendContactRequest(user: AppUser, contact: TrustedContact, message: string) {

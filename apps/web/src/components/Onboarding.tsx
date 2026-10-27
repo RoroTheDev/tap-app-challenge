@@ -44,9 +44,10 @@ interface OnboardingProps {
   initialContacts?: TrustedContact[];
   onSave: (profile: SeniorProfile, contacts: TrustedContact[]) => Promise<void>;
   onCancel?: () => void;
+  onExit?: () => void;
 }
 
-export function Onboarding({ user, initialProfile, initialContacts = [], onSave, onCancel }: OnboardingProps) {
+export function Onboarding({ user, initialProfile, initialContacts = [], onSave, onCancel, onExit }: OnboardingProps) {
   const draftKey = `tap.onboarding-draft.${user.uid}`;
   const draft = useMemo(() => {
     if (initialProfile) return null;
@@ -284,7 +285,9 @@ export function Onboarding({ user, initialProfile, initialContacts = [], onSave,
             ? <button type="button" className="back-button" onClick={onCancel}><ArrowLeft /> Cancel</button>
             : step > 0
               ? <button type="button" className="back-button" onClick={() => setStep((value) => value - 1)}><ArrowLeft /> Back</button>
-              : <span />}
+              : onExit
+                ? <button type="button" className="back-button" onClick={onExit}><ArrowLeft /> Back to landing</button>
+                : <span />}
           {editing ? (
             <button type="button" className="primary-button" disabled={saving} onClick={() => void finish()}>{saving ? "Saving…" : "Save changes"} {!saving && <Check />}</button>
           ) : step < steps.length - 1 ? (
