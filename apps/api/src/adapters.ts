@@ -22,15 +22,17 @@ const intentSchema = z.object({
   tags: z.array(z.enum(["places", "transport", "contact", "fallback"])),
 });
 
-function mockIntent(request: string, profile: PlannerProfile): ParsedIntent {
+export function classifyRequestCategory(request: string): ParsedIntent["category"] {
   const text = request.toLowerCase();
-  const category: ParsedIntent["category"] = text.includes("shop") || text.includes("store")
-    ? "shopping"
-    : text.includes("appointment") || text.includes("doctor")
-      ? "appointment"
-      : text.includes("friend") || text.includes("visit")
-        ? "social"
-        : text.includes("errand") ? "errand" : "activity";
+  if (/(shop|store|grocer|compras?|tienda|购物|商店|mamili|tindahan|mua sắm|cửa hàng|쇼핑|가게|تسوق|متجر|खरीदारी|दुकान)/u.test(text)) return "shopping";
+  if (/(appointment|doctor|clinic|cita|médic|预约|医生|doktor|cuộc hẹn|bác sĩ|예약|의사|موعد|طبيب|मुलाकात|डॉक्टर)/u.test(text)) return "appointment";
+  if (/(friend|visit|coffee|amig|visitar|朋友|拜访|kaibigan|bisita|bạn|gặp|친구|방문|صديق|زيارة|दोस्त|मिलना)/u.test(text)) return "social";
+  if (/(errand|recado|办事|utos|việc vặt|심부름|مهمة|काम)/u.test(text)) return "errand";
+  return "activity";
+}
+
+function mockIntent(request: string, profile: PlannerProfile): ParsedIntent {
+  const category = classifyRequestCategory(request);
   const placeQuery = category === "shopping" ? "accessible shopping stores"
     : category === "appointment" ? "medical offices"
       : category === "social" ? "quiet meeting places"

@@ -61,7 +61,7 @@ export function Hub({ user, profile, contacts, onEdit, onLogout, onDelete, onSta
   useEffect(() => {
     const previousLanguage = document.documentElement.lang;
     const previousDirection = document.documentElement.dir;
-    document.documentElement.lang = (speechLocales[profile.preferredLanguage] ?? "en-US").split("-")[0];
+    document.documentElement.lang = (speechLocales[profile.preferredLanguage] ?? navigator.language ?? "en-US").split("-")[0];
     document.documentElement.dir = getTextDirection(profile.preferredLanguage);
     return () => {
       recognitionSession.current += 1;

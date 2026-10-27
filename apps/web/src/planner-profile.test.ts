@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSeniorProfile, normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
+import { languageOptions, normalizeSeniorProfile, normalizeTrustedContacts, toPlannerProfile, type SeniorProfile, type TrustedContact } from "@tap/shared";
 import { onboardingStepError } from "./lib/validation";
 import { buildHubPlan } from "./lib/hub-plan";
 import { getHubCopy, getTextDirection, speechLocales } from "./lib/localization";
@@ -100,6 +100,19 @@ describe("personalized hub", () => {
     expect(copy.askTitle).toBe("Dile a Cue lo que necesitas");
     expect(speechLocales.Spanish).toBe("es-US");
     expect(getTextDirection("Arabic")).toBe("rtl");
+  });
+
+  it("has complete hub and voice support for every named language", () => {
+    for (const language of languageOptions.filter((item) => item !== "Other")) {
+      const copy = getHubCopy(language);
+      expect(speechLocales[language], `${language} speech locale`).toMatch(/^[a-z]{2,3}-[A-Z]{2}$/);
+      expect(copy.askTitle, `${language} hub copy`).toBeTruthy();
+      expect(copy.voiceStarting, `${language} starting message`).toBeTruthy();
+      expect(copy.voicePermission, `${language} permission message`).toBeTruthy();
+      expect(copy.voiceNoSpeech, `${language} no-speech message`).toBeTruthy();
+      expect(copy.quickRequests.length, `${language} quick requests`).toBeGreaterThanOrEqual(4);
+    }
+    expect(getHubCopy("Other").askTitle).toBeTruthy();
   });
 
   it("builds ranked action tags and only includes approved contact help", () => {
